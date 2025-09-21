@@ -9,7 +9,12 @@ import Jobs from "./pages/Jobs";
 import JobDetail from "./pages/JobDetail";
 import Groups from "./pages/Groups";
 import Badges from "./pages/Badges";
+import Profile from "./pages/profile";
+import Stories from "./pages/videos";
 import NotFound from "./pages/NotFound";
+import Event from "./pages/event";
+import Messages from "./pages/messages";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +31,11 @@ const App = () => (
           <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/groups" element={<Groups />} />
           <Route path="/badges" element={<Badges />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/stories" element={<Stories />} />
+          <Route path="/event" element={<Event />} />
+          <Route path="/messages" element={<Messages />} />
+          <Route path="/settings" element={<Settings />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

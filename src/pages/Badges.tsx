@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { Search, Filter } from "lucide-react";
+import FriendComponent from "@/components/feed/frindereaquest"
 
 const users = [
   {

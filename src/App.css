@@ -5,6 +5,19 @@
   text-align: center;
 }
 
+
+/* styles/globals.css أو أي ملف CSS عندك */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE و Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+
+
+
 .logo {
   height: 6em;
   padding: 1.5em;

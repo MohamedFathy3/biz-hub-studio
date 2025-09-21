@@ -6,9 +6,9 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 
 export const CreatePost = () => {
   return (
-    <Card className="mb-6">
+    <Card className="p-4">
       <CardContent className="p-6">
-        <div className="flex items-start gap-4">
+        <div className="flex items-start gap-6">
           <UserAvatar
             src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
             fallback="SZ"
@@ -23,15 +23,15 @@ export const CreatePost = () => {
 
         <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
+            <Button variant="ghost" size="sm" className="text-destructive hover:text-white ">
               <Video className="w-5 h-5 mr-2" />
               Live Video
             </Button>
-            <Button variant="ghost" size="sm" className="text-success hover:text-success">
+            <Button variant="ghost" size="sm" className="text-success hover:text-white">
               <Image className="w-5 h-5 mr-2" />
               Photo/Video
             </Button>
-            <Button variant="ghost" size="sm" className="text-warning hover:text-warning">
+            <Button variant="ghost" size="sm" className="text-warning hover:text-white">
               <Smile className="w-5 h-5 mr-2" />
               Feeling/Activity
             </Button>
@@ -43,5 +43,8 @@ export const CreatePost = () => {
         </div>
       </CardContent>
     </Card>
+
+
+
   );
 };

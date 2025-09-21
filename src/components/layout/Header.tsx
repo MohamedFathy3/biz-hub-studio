@@ -1,8 +1,18 @@
-import { Search, Home, Zap, Video, User, MessageCircle, Bell, Moon } from "lucide-react";
+import {
+  Search,
+  Home,
+  Zap,
+  Video,
+  User,
+  MessageCircle,
+  Bell,
+  Moon,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { NavLink } from "react-router-dom";
 
 export const Header = () => {
   return (
@@ -21,21 +31,50 @@ export const Header = () => {
 
         {/* Navigation Icons */}
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="relative">
-            <Home className="w-5 h-5" />
-          </Button>
-          <Button variant="ghost" size="sm" className="relative">
-            <Zap className="w-5 h-5" />
-          </Button>
-          <Button variant="ghost" size="sm" className="relative">
-            <Video className="w-5 h-5" />
-          </Button>
-          <Button variant="ghost" size="sm" className="relative">
-            <User className="w-5 h-5" />
-          </Button>
-          <Button variant="ghost" size="sm" className="relative">
-            <MessageCircle className="w-5 h-5" />
-          </Button>
+          {/* Home */}
+          <NavLink to="/" className={({ isActive }) => isActive ? "text-primary" : "text-muted-foreground"}>
+            {({ isActive }) => (
+              <Button variant="ghost" size="sm" className={`relative ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                <Home className="w-5 h-5" />
+              </Button>
+            )}
+          </NavLink>
+
+          {/* Store */}
+          <NavLink to="/store" className={({ isActive }) => isActive ? "text-primary" : "text-muted-foreground"}>
+            {({ isActive }) => (
+              <Button variant="ghost" size="sm" className={`relative ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                <Zap className="w-5 h-5" />
+              </Button>
+            )}
+          </NavLink>
+
+          {/* Stories */}
+          <NavLink to="/stories" className={({ isActive }) => isActive ? "text-primary" : "text-muted-foreground"}>
+            {({ isActive }) => (
+              <Button variant="ghost" size="sm" className={`relative ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                <Video className="w-5 h-5" />
+              </Button>
+            )}
+          </NavLink>
+
+          {/* Profile */}
+          <NavLink to="/profile" className={({ isActive }) => isActive ? "text-primary" : "text-muted-foreground"}>
+            {({ isActive }) => (
+              <Button variant="ghost" size="sm" className={`relative ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                <User className="w-5 h-5" />
+              </Button>
+            )}
+          </NavLink>
+
+          {/* Messages */}
+          <NavLink to="/messages" className={({ isActive }) => isActive ? "text-primary" : "text-muted-foreground"}>
+            {({ isActive }) => (
+              <Button variant="ghost" size="sm" className={`relative ${isActive ? "text-primary" : "text-muted-foreground"}`}>
+                <MessageCircle className="w-5 h-5" />
+              </Button>
+            )}
+          </NavLink>
         </div>
 
         {/* Right Section */}
@@ -46,7 +85,7 @@ export const Header = () => {
               3
             </Badge>
           </Button>
-          
+
           <Button variant="ghost" size="sm" className="relative">
             <MessageCircle className="w-5 h-5" />
           </Button>

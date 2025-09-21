@@ -12,6 +12,7 @@ import {
   Settings, 
   BarChart3,
   Briefcase,
+  MessageCircle,
   Store
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ const sidebarItems = [
   { id: "profile", label: "Author Profile", icon: UserPlus, href: "/profile" },
   { id: "store", label: "Store", icon: Store, href: "/store" },
   { id: "jobs", label: "Jobs", icon: Briefcase, href: "/jobs" },
+   { title: "Messages", label: "messages", icon: MessageCircle,href: "/messages" },
 ];
 
 const morePages = [

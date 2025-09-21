@@ -12,6 +12,7 @@ export default {
         "2xl": "1400px",
       },
     },
+    
     extend: {
       colors: {
         border: "hsl(var(--border))",
@@ -95,5 +96,6 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [require("tailwindcss-animate"),    require('tailwind-scrollbar-hide')]
+  
 } satisfies Config;
