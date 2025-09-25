@@ -1,105 +1,162 @@
+// components/Header.tsx
 import {
   Search,
   Home,
   Zap,
   Video,
-  User,
+  Users,
   MessageCircle,
   Bell,
   Moon,
+  Menu,
+  GamepadIcon,
+  ChevronDown,
+Plus,
 } from "lucide-react";
+import { AuthContext } from "@/Context/AuthContext";
+import { useContext } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { NavLink } from "react-router-dom";
+import { useSidebar } from "@/Context/SidebarContext";
 
 export const Header = () => {
+  const { isCollapsed, toggleSidebar } = useSidebar();
+    const { user, loading } = useContext(AuthContext);
+
   return (
-    <header className="h-16 bg-card border-b border-border fixed top-0 left-64 right-0 z-40">
-      <div className="flex items-center justify-between h-full px-6">
-        {/* Search */}
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-            <Input
-              placeholder="Start typing to search..."
-              className="pl-10 bg-secondary border-0"
-            />
-          </div>
-        </div>
+<header className={cn(
+  "h-16 bg-white border-b border-gray-200 fixed top-0 z-40 transition-all duration-300 shadow-sm",
+  isCollapsed ? "left-16 right-0" : "left-64 right-0"
+)}>
+  <div className="flex items-center justify-between h-full px-4 w-full">
 
-        {/* Navigation Icons */}
-        <div className="flex items-center gap-2">
-          {/* Home */}
-          <NavLink to="/" className={({ isActive }) => isActive ? "text-primary" : "text-muted-foreground"}>
-            {({ isActive }) => (
-              <Button variant="ghost" size="sm" className={`relative ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-                <Home className="w-5 h-5" />
-              </Button>
-            )}
-          </NavLink>
+    {/* Left Section - Logo and Search */}
+    <div className="flex items-center gap-4 flex-1 max-w-3xl">
+      {/* Menu Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={toggleSidebar}
+        className="p-2 hover:bg-gray-100 rounded-full md:hidden"
+      >
+        <Menu className="w-5 h-5" />
+      </Button>
 
-          {/* Store */}
-          <NavLink to="/store" className={({ isActive }) => isActive ? "text-primary" : "text-muted-foreground"}>
-            {({ isActive }) => (
-              <Button variant="ghost" size="sm" className={`relative ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-                <Zap className="w-5 h-5" />
-              </Button>
-            )}
-          </NavLink>
-
-          {/* Stories */}
-          <NavLink to="/stories" className={({ isActive }) => isActive ? "text-primary" : "text-muted-foreground"}>
-            {({ isActive }) => (
-              <Button variant="ghost" size="sm" className={`relative ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-                <Video className="w-5 h-5" />
-              </Button>
-            )}
-          </NavLink>
-
-          {/* Profile */}
-          <NavLink to="/profile" className={({ isActive }) => isActive ? "text-primary" : "text-muted-foreground"}>
-            {({ isActive }) => (
-              <Button variant="ghost" size="sm" className={`relative ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-                <User className="w-5 h-5" />
-              </Button>
-            )}
-          </NavLink>
-
-          {/* Messages */}
-          <NavLink to="/messages" className={({ isActive }) => isActive ? "text-primary" : "text-muted-foreground"}>
-            {({ isActive }) => (
-              <Button variant="ghost" size="sm" className={`relative ${isActive ? "text-primary" : "text-muted-foreground"}`}>
-                <MessageCircle className="w-5 h-5" />
-              </Button>
-            )}
-          </NavLink>
-        </div>
-
-        {/* Right Section */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" className="relative">
-            <Bell className="w-5 h-5" />
-            <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center text-xs bg-primary">
-              3
-            </Badge>
-          </Button>
-
-          <Button variant="ghost" size="sm" className="relative">
-            <MessageCircle className="w-5 h-5" />
-          </Button>
-
-          <Button variant="ghost" size="sm">
-            <Moon className="w-5 h-5" />
-          </Button>
-
-          <Avatar className="w-8 h-8">
-            <AvatarImage src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80" />
-            <AvatarFallback>SZ</AvatarFallback>
-          </Avatar>
-        </div>
+      {/* Logo */}
+      <div className="flex items-center gap-2 mr-4">
+     
+        <span className="text-xl font-bold text-gray-900 hidden md:block">socile</span>
       </div>
-    </header>
+
+ 
+    </div>
+
+    {/* Center Section - Navigation Icons */}
+    <div className="flex items-center gap-0 absolute left-1/2 transform -translate-x-1/2">
+      <NavLink 
+        to="/" 
+        className={({ isActive }) => cn(
+          "flex items-center justify-center w-28 h-full border-b-2 transition-all",
+          isActive 
+            ? "border-blue-600 text-blue-600" 
+            : "border-transparent text-gray-500 hover:bg-gray-100"
+        )}
+      >
+        <Button variant="ghost" className="h-12 w-full rounded-none px-0">
+          <Home className="w-6 h-6" />
+        </Button>
+      </NavLink>
+
+      <NavLink 
+        to="/videos" 
+        className={({ isActive }) => cn(
+          "flex items-center justify-center w-28 h-full border-b-2 transition-all",
+          isActive 
+            ? "border-blue-600 text-blue-600" 
+            : "border-transparent text-gray-500 hover:bg-gray-100"
+        )}
+      >
+        <Button variant="ghost" className="h-12 w-full rounded-none px-0">
+          <Video className="w-6 h-6" />
+        </Button>
+      </NavLink>
+
+      <NavLink 
+        to="/store" 
+        className={({ isActive }) => cn(
+          "flex items-center justify-center w-28 h-full border-b-2 transition-all",
+          isActive 
+            ? "border-blue-600 text-blue-600" 
+            : "border-transparent text-gray-500 hover:bg-gray-100"
+        )}
+      >
+        <Button variant="ghost" className="h-12 w-full rounded-none px-0">
+          <Zap className="w-6 h-6" />
+        </Button>
+      </NavLink>
+
+      <NavLink 
+        to="/profile" 
+        className={({ isActive }) => cn(
+          "flex items-center justify-center w-28 h-full border-b-2 transition-all",
+          isActive 
+            ? "border-blue-600 text-blue-600" 
+            : "border-transparent text-gray-500 hover:bg-gray-100"
+        )}
+      >
+        <Button variant="ghost" className="h-12 w-full rounded-none px-0">
+          <Users className="w-6 h-6" />
+        </Button>
+      </NavLink>
+
+     
+    </div>
+
+    {/* Right Section - User Menu */}
+    <div className="flex items-center gap-4 flex-1 justify-end">
+      
+      {/* Quick Actions */}
+      <div className="flex items-center gap-1">
+        <Button variant="ghost" size="sm" className="p-2 hover:bg-gray-100 rounded-full md:hidden">
+          <Menu className="w-5 h-5" />
+        </Button>
+
+        <Button variant="ghost" size="sm" className="p-2 hover:bg-blue-500 rounded-full relative">
+          <MessageCircle className="w-5 h-5" />
+          <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-red-500">
+            3
+          </Badge>
+        </Button>
+
+        <Button variant="ghost" size="sm" className="p-6 hover:bg-blue-500 rounded-full relative">
+          <Bell className="w-5 h-5" />
+          <Badge className="absolute top-1 right-3 h-5 w-5 p-0 flex items-center justify-center text-xs bg-red-500">
+            5
+          </Badge>
+        </Button>
+      </div>
+
+      {/* User Profile */}
+      <div className="flex items-center gap-2 ml-2 p-1 hover:bg-gray-100 rounded-full cursor-pointer">
+        <Avatar className="w-8 h-8">
+        <AvatarImage src={user.profile_image || 'https://via.placeholder.com/150'} />
+          <AvatarFallback className="bg-gray-300">U</AvatarFallback>
+        </Avatar>
+        <span className="text-sm font-medium text-gray-700 hidden lg:block">{user.first_name}</span>
+      </div>
+
+     
+    </div>
+  </div>
+</header>
+
   );
 };
+
+function cn(...classes: string[]) {
+  return classes.filter(Boolean).join(' ');
+}

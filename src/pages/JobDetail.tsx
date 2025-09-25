@@ -24,15 +24,15 @@ const JobDetail = () => {
   const job = {
     id: 1,
     title: "Senior Frontend Developer",
-    company: "TechCorp Inc.",
+    clinck: "TechCorp Inc.",
     location: "San Francisco, CA",
     type: "Full-time",
     salary: "$120,000 - $150,000",
     postedDate: "2 days ago",
     applicants: 45,
     logo: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=926&q=80",
-    isRemote: false,
-    isFeatured: true,
+    avalibel: false,
+    isavalibel: true,
     description: `We are looking for a Senior Frontend Developer to join our growing team. You will be responsible for building and maintaining user-facing applications using modern web technologies.
 
 This is an excellent opportunity to work with a talented team on cutting-edge projects that impact millions of users worldwide.`,
@@ -64,12 +64,19 @@ This is an excellent opportunity to work with a talented team on cutting-edge pr
       "Modern office space in downtown San Francisco"
     ],
     
-    companyInfo: {
+    clinckInfo: {
       size: "200-500 employees",
       industry: "Technology",
       founded: "2015",
-      website: "www.techcorp.com"
+      website: "www.techcorp.com",
+      locationClinck:"ciro"
+    },
+     profile: {
+      name: "mohamed",
+      postion: "Technology",
+      iamge:'avter'
     }
+  
   };
 
   return (
@@ -95,21 +102,21 @@ This is an excellent opportunity to work with a talented team on cutting-edge pr
                     <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
                       <img
                         src={job.logo}
-                        alt={job.company}
+                        alt={job.clinck}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-2">
                         <h1 className="text-2xl font-bold">{job.title}</h1>
-                        {job.isFeatured && (
-                          <Badge className="bg-warning">Featured</Badge>
+                        {job.isavalibel && (
+                          <Badge className="bg-warning">isavalibel</Badge>
                         )}
                       </div>
                       <div className="flex items-center gap-4 text-muted-foreground">
                         <div className="flex items-center gap-1">
                           <Building2 className="w-4 h-4" />
-                          {job.company}
+                          {job.clinck}
                         </div>
                         <div className="flex items-center gap-1">
                           <MapPin className="w-4 h-4" />
@@ -235,27 +242,31 @@ This is an excellent opportunity to work with a talented team on cutting-edge pr
             {/* Company Info */}
             <Card>
               <CardHeader>
-                <CardTitle>About {job.company}</CardTitle>
+                <CardTitle>About {job.clinck}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Company Size</span>
-                  <span className="font-medium">{job.companyInfo.size}</span>
+                  <span className="font-medium">{job.clinckInfo.size}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Industry</span>
-                  <span className="font-medium">{job.companyInfo.industry}</span>
+                  <span className="font-medium">{job.clinckInfo.industry}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Founded</span>
-                  <span className="font-medium">{job.companyInfo.founded}</span>
+                  <span className="font-medium">{job.clinckInfo.founded}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Website</span>
-                  <span className="font-medium text-primary">{job.companyInfo.website}</span>
+                  <span className="font-medium text-primary">{job.clinckInfo.website}</span>
+                </div>
+                   <div className="flex justify-between">
+                  <span className="text-muted-foreground">locationClinck</span>
+                  <span className="font-medium text-primary">{job.clinckInfo.locationClinck}</span>
                 </div>
               </CardContent>
-            </Card>
+            </Card>locationClinck
 
             {/* Similar Jobs */}
             <Card>

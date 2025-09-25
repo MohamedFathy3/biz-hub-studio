@@ -337,9 +337,7 @@ const ReelsPage = () => {
         </div>
         
         {/* الشريط الجانبي للأصدقاء */}
-        <div className="hidden md:block w-1/3 bg-white border-l p-4 overflow-y-auto">
-          <FriendComponent />
-        </div>
+        
       </div>
     </MainLayout>
   );

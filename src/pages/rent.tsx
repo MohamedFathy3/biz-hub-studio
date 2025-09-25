@@ -7,6 +7,7 @@ import ImageUploader from "@/components/ImageUploader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom"; 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Store = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -18,17 +19,17 @@ const Store = () => {
   const [newProduct, setNewProduct] = useState({
     name: "",
     price: "",
-    discount: "",
     des: "",
-    gallery: [] as number[],
-    is_new: true,
+    gallery: [] as number[], // array of image IDs
+    type: "rent", // الافتراضي إيجار
   });
 
   const perPage = 10;
 
+  // fetch products
   const fetchProducts = async (page: number) => {
     try {
-      const res = await api.post("/product/index", {
+      const res = await api.post("/rent/index", {
         filters: {},
         orderBy: "id",
         orderByDirection: "asc",
@@ -48,27 +49,27 @@ const Store = () => {
     fetchProducts(page);
   }, [page]);
 
-const handleMultipleImageUpload = (id: number) => {
-  setNewProduct(prev => ({
-    ...prev,
-    gallery: [...prev.gallery, id],
-  }));
-};
+  // Handle multiple image uploads
+  const handleMultipleImageUpload = (id: string | number) => {
+    setNewProduct(prev => ({
+      ...prev,
+      gallery: [...prev.gallery, Number(id)], // تحويل id لأي رقم قبل التخزين
+    }));
+  };
 
-
+  // Create new product
   const handleCreateProduct = async () => {
     try {
-      await api.post("/product", {
+      await api.post("/rent", {
         name: newProduct.name,
         price: parseFloat(newProduct.price),
-        discount: parseFloat(newProduct.discount),
         des: newProduct.des,
-        gallery: newProduct.gallery, // إرسال الـ gallery
-        is_new: newProduct.is_new ? 1 : 0,
+        gallery: newProduct.gallery, // أرسل المصفوفة بدل imageId
+        type: newProduct.type,
       });
       setModalOpen(false);
-      fetchProducts(page); // تحديث القائمة
-      setNewProduct({ name: "", price: "", discount: "", des: "", gallery: [], is_new: true });
+      fetchProducts(page);
+      setNewProduct({ name: "", price: "", des: "", gallery: [], type: "rent" });
     } catch (err) {
       console.error(err);
       alert("Failed to create product.");
@@ -79,44 +80,32 @@ const handleMultipleImageUpload = (id: number) => {
     <MainLayout>
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Store</h1>
-          <Button onClick={() => setModalOpen(true)}>Add Product</Button>
+          <h1 className="text-3xl font-bold">Rent Store</h1>
+          <Button onClick={() => setModalOpen(true)}>Add Rent Product</Button>
         </div>
 
+        {/* Products Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 l:grid-cols-4 gap-6">
           {products.map((product) => (
             <Card key={product.id} className="group hover:shadow-lg transition-shadow rounded-lg overflow-hidden">
               <div className="relative w-full h-48">
-                <img
-  src={product.gallery?.[0]?.fullUrl} // عرض أول صورة من المعرض
-                  alt={product.name}
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                />
+                {product.gallery && product.gallery.length > 0 && (
+                  <img
+                    src={product.gallery?.[0]?.fullUrl} // استخدم أول صورة من الـ gallery
+                    alt={product.name}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                )}
               </div>
-
               <CardContent className="p-5 flex flex-col justify-between h-46">
                 <h3 className="font-semibold text-lg mb-2 line-clamp-2">{product.name}</h3>
                 <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
                   {product.des || "No description available."}
                 </p>
-
                 <div className="flex items-center justify-between mt-auto gap-2">
-                  <div className="flex flex-col">
-                    <span className="text-lg font-bold text-primary">${product.price}</span>
-                    {product.discount && (
-                      <span className="text-sm text-red-500 line-through">${product.discount}</span>
-                    )}
-                    {product.price_after_discount && (
-                      <span className="text-sm text-green-600 font-medium">
-                        ${product.price_after_discount}
-                      </span>
-                    )}
-                  </div>
-
-                  <Link to={`/ProDetail/${product.id}`}>
-                    <Button size="sm" variant="outline">
-                      View
-                    </Button>
+                  <span className="text-lg font-bold text-primary">${product.price}</span>
+                  <Link to={`/RentDetail/${product.id}`}>
+                    <Button size="sm" variant="outline">View</Button>
                   </Link>
                 </div>
               </CardContent>
@@ -124,6 +113,7 @@ const handleMultipleImageUpload = (id: number) => {
           ))}
         </div>
 
+        {/* Pagination */}
         <div className="flex justify-center mt-6 gap-2">
           <Button disabled={page <= 1} onClick={() => setPage(page - 1)}>Prev</Button>
           <span>{page} / {totalPages}</span>
@@ -131,10 +121,11 @@ const handleMultipleImageUpload = (id: number) => {
         </div>
       </div>
 
+      {/* Add Product Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Add New Product</DialogTitle>
+            <DialogTitle>Add New Rent Product</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <Input
@@ -149,21 +140,30 @@ const handleMultipleImageUpload = (id: number) => {
               onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
             />
             <Input
-              placeholder="Discount"
-              type="number"
-              value={newProduct.discount}
-              onChange={(e) => setNewProduct({ ...newProduct, discount: e.target.value })}
-            />
-            <Input
               placeholder="Description"
               value={newProduct.des}
               onChange={(e) => setNewProduct({ ...newProduct, des: e.target.value })}
             />
-       <ImageUploader
-  label="Upload Product Images"
-  onUploadSuccess={handleMultipleImageUpload}
-/>
 
+            {/* Dropdown type */}
+            <Select
+              value={newProduct.type}
+              onValueChange={(value) => setNewProduct({ ...newProduct, type: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="rent">rent</SelectItem>
+                <SelectItem value="sale">sale</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Image uploader */}
+            <ImageUploader
+              label="Upload Product Images"
+              onUploadSuccess={handleMultipleImageUpload}
+            />
           </div>
           <DialogFooter className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>

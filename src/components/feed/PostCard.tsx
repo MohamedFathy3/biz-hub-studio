@@ -28,12 +28,12 @@ export function PostCard({ author, content, image, likes, comments, timestamp }:
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <Avatar>
-              <AvatarImage src={author.avatar} />
-              <AvatarFallback>{author.name.charAt(0)}</AvatarFallback>
+              <AvatarImage src={author?.avatar} />
+              <AvatarFallback>{author?.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div>
-              <h4 className="font-semibold text-sm">{author.name}</h4>
-              <p className="text-muted-foreground text-xs">@{author.username} • {timestamp}</p>
+              <h4 className="font-semibold text-sm">{author?.name}</h4>
+              <p className="text-muted-foreground text-xs">@{author?.username} • {timestamp}</p>
             </div>
           </div>
           <Button variant="ghost" size="sm" className="hover:bg-accent">
