@@ -2,36 +2,31 @@
 import { Link, useLocation } from "react-router-dom";
 import { 
   Home, 
-  Award, 
   BookOpen, 
   Users, 
   UserPlus, 
-  Mail, 
-  MapPin, 
-  Calendar, 
-  Video, 
-  Settings, 
-  BarChart3,
-  Briefcase,
   MessageCircle,
   Store,
+  Briefcase,
+  Calendar, 
+  Settings, 
+  BarChart3,
   ChevronLeft,
   ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { useSidebar } from "@/Context/SidebarContext";
 import { Button } from "@/components/ui/button";
 
 const sidebarItems = [
   { id: "newfeeds", label: "Newsfeed", icon: Home, href: "/" },
-  { id: "Frindes", label: "Frindes ", icon: UserPlus, href: "/User" },
+  { id: "Frindes", label: "Friends", icon: UserPlus, href: "/User" },
   { id: "stories", label: "Explore Stories", icon: BookOpen, href: "/stories" },
   { id: "store", label: "Store", icon: Store, href: "/store" },
+  { id: "Alljobs", label: "My Jobs", icon: Briefcase, href: "/Alljobs" },
   { id: "jobs", label: "Jobs", icon: Briefcase, href: "/jobs" },
   { id: "messages", label: "Messages", icon: MessageCircle, href: "/messages" },
-  { id: "Rent", label: "Rent", icon: Store, href: "/Rent" },
-
+  { id: "Rent", label: "Rent Clinic", icon: Store, href: "/Rent" },
 ];
 
 const morePages = [
@@ -49,99 +44,84 @@ export const Sidebar = () => {
 
   return (
     <div className={cn(
-      "h-screen bg-card border-r border-border fixed left-0 top-0 overflow-y-auto transition-all duration-300 z-50",
-      isCollapsed ? "w-16" : "w-64"
+      "h-screen bg-white border-r border-gray-200 fixed left-0 top-0 z-50 transition-all duration-300",
+      isCollapsed ? "w-20" : "w-64"
     )}>
       {/* Logo Section */}
-      <div className="p-4 border-b border-border">
+      <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
-          {!isCollapsed && (
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <div className="w-4 h-4 bg-white rounded-sm"></div>
+          {/* اللوجو */}
+          <div className={cn(
+            "flex items-center transition-all duration-300",
+            isCollapsed ? "justify-center w-full" : "w-full"
+          )}>
+            <img
+              src="/website_blue.png"
+              alt="Dent Studio Logo"
+              className={cn(
+                "object-contain transition-all duration-300",
+                isCollapsed ? "w-10 h-10" : "w-12 h-12" // حجم أصغر للوجو
+              )}
+            />
+            {!isCollapsed && (
+              <div className="ml-3">
+                <h1 className="text-lg font-bold text-[#039fb3]">Dent</h1>
+                <p className="text-xs text-gray-500">Studio</p>
               </div>
-              <span className="text-xl font-bold text-primary">Sociala.</span>
-            </div>
+            )}
+          </div>
+          
+          {/* زر التكبير/التصغير */}
+          {!isCollapsed && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleSidebar}
+              className="p-1 h-8 w-8 hover:bg-gray-100 flex-shrink-0"
+            >
+              <ChevronLeft className="w-4 h-4 text-gray-600" />
+            </Button>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggleSidebar}
-            className="p-1 h-8 w-8"
-          >
-            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </Button>
         </div>
       </div>
 
-      <div className="p-3">
-        {/* New Feeds Section */}
-        <div className="mb-6">
-          {!isCollapsed && (
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              New Feeds
-            </h3>
-          )}
+      {/* المحتوى */}
+      <div className="h-[calc(100vh-80px)] flex flex-col justify-between py-4">
+        {/* الأقسام الرئيسية */}
+        <div className="flex-1 px-3">
+          {/* Navigation Sections */}
           <nav className="space-y-1">
             {sidebarItems.map((item) => {
               const isActive = location.pathname === item.href;
+              const IconComponent = item.icon;
+              
               return (
                 <Link
                   key={item.id}
                   to={item.href}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",
+                    "flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
                     isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary",
-                    isCollapsed ? "justify-center" : ""
+                      ? "bg-[#039fb3] text-white shadow-lg shadow-blue-100"
+                      : "text-gray-600 hover:text-[#039fb3] hover:bg-gray-50",
+                    isCollapsed ? "justify-center" : "gap-3"
                   )}
                   title={isCollapsed ? item.label : ""}
                 >
-                  <item.icon className="w-5 h-5" />
-                  {!isCollapsed && item.label}
-                  {isCollapsed && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-foreground text-background text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                      {item.label}
-                    </div>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-
-        {/* More Pages Section */}
-        <div className="mb-6">
-          {!isCollapsed && (
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              More Pages
-            </h3>
-          )}
-          <nav className="space-y-1">
-            {morePages.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.id}
-                  to={item.href}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary",
-                    isCollapsed ? "justify-center" : ""
-                  )}
-                  title={isCollapsed ? item.label : ""}
-                >
-                  <item.icon className="w-5 h-5" />
+                  <IconComponent className={cn(
+                    "transition-colors flex-shrink-0",
+                    isActive ? "text-white" : "text-gray-500 group-hover:text-[#039fb3]",
+                    "w-5 h-5"
+                  )} />
+                  
                   {!isCollapsed && (
-                    <>
-                      <span className="flex-1">{item.label}</span>
-                    </>
+                    <span className="transition-colors whitespace-nowrap font-medium">
+                      {item.label}
+                    </span>
                   )}
+                  
                   {isCollapsed && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-foreground text-background text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg pointer-events-none">
                       {item.label}
                     </div>
                   )}
@@ -149,35 +129,85 @@ export const Sidebar = () => {
               );
             })}
           </nav>
+
+          {/* More Pages Section */}
+          <div className="mt-6 pt-4 border-t border-gray-100">
+            <nav className="space-y-1">
+              {morePages.map((item) => {
+                const isActive = location.pathname === item.href;
+                const IconComponent = item.icon;
+                
+                return (
+                  <Link
+                    key={item.id}
+                    to={item.href}
+                    className={cn(
+                      "flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
+                      isActive
+                        ? "bg-[#039fb3] text-white shadow-lg shadow-blue-100"
+                        : "text-gray-600 hover:text-[#039fb3] hover:bg-gray-50",
+                      isCollapsed ? "justify-center" : "gap-3"
+                    )}
+                    title={isCollapsed ? item.label : ""}
+                  >
+                    <IconComponent className={cn(
+                      "transition-colors flex-shrink-0",
+                      isActive ? "text-white" : "text-gray-500 group-hover:text-[#039fb3]",
+                      "w-5 h-5"
+                    )} />
+                    
+                    {!isCollapsed && (
+                      <span className="transition-colors whitespace-nowrap font-medium">
+                        {item.label}
+                      </span>
+                    )}
+                    
+                    {isCollapsed && (
+                      <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg pointer-events-none">
+                        {item.label}
+                      </div>
+                    )}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
         </div>
 
         {/* Account Section */}
-        <div>
-          {!isCollapsed && (
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              Account
-            </h3>
-          )}
+        <div className="px-3">
           <nav className="space-y-1">
             {accountItems.map((item) => {
               const isActive = location.pathname === item.href;
+              const IconComponent = item.icon;
+              
               return (
                 <Link
                   key={item.id}
                   to={item.href}
                   className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group",
+                    "flex items-center px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
                     isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary",
-                    isCollapsed ? "justify-center" : ""
+                      ? "bg-[#039fb3] text-white shadow-lg shadow-blue-100"
+                      : "text-gray-600 hover:text-[#039fb3] hover:bg-gray-50",
+                    isCollapsed ? "justify-center" : "gap-3"
                   )}
                   title={isCollapsed ? item.label : ""}
                 >
-                  <item.icon className="w-5 h-5" />
-                  {!isCollapsed && item.label}
+                  <IconComponent className={cn(
+                    "transition-colors flex-shrink-0",
+                    isActive ? "text-white" : "text-gray-500 group-hover:text-[#039fb3]",
+                    "w-5 h-5"
+                  )} />
+                  
+                  {!isCollapsed && (
+                    <span className="transition-colors whitespace-nowrap font-medium">
+                      {item.label}
+                    </span>
+                  )}
+                  
                   {isCollapsed && (
-                    <div className="absolute left-full ml-2 px-2 py-1 bg-foreground text-background text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    <div className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 shadow-lg pointer-events-none">
                       {item.label}
                     </div>
                   )}
@@ -185,6 +215,18 @@ export const Sidebar = () => {
               );
             })}
           </nav>
+
+          {/* زر التكبير/التصغير للحالة المطوية */}
+          {isCollapsed && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleSidebar}
+              className="w-full justify-center p-2 hover:bg-gray-100 mt-3"
+            >
+              <ChevronRight className="w-4 h-4 text-gray-600" />
+            </Button>
+          )}
         </div>
       </div>
     </div>

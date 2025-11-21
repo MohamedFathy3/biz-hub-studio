@@ -8,6 +8,11 @@ type Field = {
   name: string;
 };
 
+type LoginCredentials = {
+ email_or_phone: string;
+  password: string;
+};
+
 type Certificate = {
   id: number;
   name: string;
@@ -58,7 +63,7 @@ cv:string;
 type AuthContextType = {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
 };
 
@@ -74,43 +79,64 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate(); // بدل useRouter
 
-  const checkAuth = async () => {
-    const token = Cookies.get("token");
-    if (!token) {
-      setLoading(false);
-      setUser(null);
-      return;
-    }
+const checkAuth = async () => {
+  const token = Cookies.get("token");
+  console.log("🔐 Token from cookies:", token);
+  
+  if (!token) {
+    console.log("❌ No token found");
+    setLoading(false);
+    setUser(null);
+    return;
+  }
 
-    try {
-      const res = await api.get("/user/check-auth");
-setUser({
-  ...res.data.message.doctor,
-  friends_count: res.data.message.friends_count,
-  friends: res.data.message.friends,
-});    } catch (error) {
-      Cookies.remove("token");
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    console.log("🔄 Checking auth...");
+    const res = await api.get("/user/check-auth");
+    console.log("✅ Auth check response:", res.data);
+    
+    setUser({
+      ...res.data.message.doctor,
+      friends_count: res.data.message.friends_count,
+      friends: res.data.message.friends,
+    });
+    console.log("✅ User set successfully");
+  } catch (error) {
+    console.error("❌ Auth check error:", error);
+    Cookies.remove("token");
+    setUser(null);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     checkAuth();
   }, []);
 
-  const login = async (email: string, password: string) => {
-    try {
-      const res = await api.post("/user/login", { email, password });
-      const token = res.data.token; // تأكد من اسم المفتاح
-      Cookies.set("token", token);
-      await checkAuth();
-      navigate("/"); // تحويل للصفحة الرئيسية أو dashboard
-    } catch (error) {
-      throw error;
-    }
-  };
+const login = async (credentials: LoginCredentials) => {
+  try {
+    console.log("🔐 Attempting login with:", credentials);
+    const res = await api.post("/user/login", {
+      email_or_phone: credentials.email_or_phone,
+      password: credentials.password 
+    });
+    console.log("✅ Login response:", res.data);
+    
+    const token = res.data.token;
+    console.log("🔑 Token received:", token);
+    
+    Cookies.set("token", token);
+    console.log("🍪 Token set in cookies");
+    
+    await checkAuth();
+    console.log("🔄 After checkAuth - should redirect now");
+    navigate("/");
+  } catch (error) {
+    console.error("❌ Login error:", error);
+    throw error;
+  }
+};
 
   const logout = () => {
     Cookies.remove("token");

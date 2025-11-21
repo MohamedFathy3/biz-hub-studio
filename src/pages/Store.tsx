@@ -7,6 +7,13 @@ import ImageUploader from "@/components/ImageUploader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Link } from "react-router-dom"; 
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue 
+} from "@/components/ui/select";
 
 const Store = () => {
   const [products, setProducts] = useState<any[]>([]);
@@ -21,7 +28,7 @@ const Store = () => {
     discount: "",
     des: "",
     gallery: [] as number[],
-    is_new: true,
+    is_new: "1", // عدلنا ل string علشان ال Select
   });
 
   const perPage = 10;
@@ -48,13 +55,12 @@ const Store = () => {
     fetchProducts(page);
   }, [page]);
 
-const handleMultipleImageUpload = (id: number) => {
-  setNewProduct(prev => ({
-    ...prev,
-    gallery: [...prev.gallery, id],
-  }));
-};
-
+  const handleMultipleImageUpload = (id: number) => {
+    setNewProduct(prev => ({
+      ...prev,
+      gallery: [...prev.gallery, id],
+    }));
+  };
 
   const handleCreateProduct = async () => {
     try {
@@ -63,12 +69,20 @@ const handleMultipleImageUpload = (id: number) => {
         price: parseFloat(newProduct.price),
         discount: parseFloat(newProduct.discount),
         des: newProduct.des,
-        gallery: newProduct.gallery, // إرسال الـ gallery
-        is_new: newProduct.is_new ? 1 : 0,
+        gallery: newProduct.gallery,
+        is_new: parseInt(newProduct.is_new), // حولنا ل number
       });
       setModalOpen(false);
-      fetchProducts(page); // تحديث القائمة
-      setNewProduct({ name: "", price: "", discount: "", des: "", gallery: [], is_new: true });
+      fetchProducts(page);
+      // Reset form
+      setNewProduct({ 
+        name: "", 
+        price: "", 
+        discount: "", 
+        des: "", 
+        gallery: [], 
+        is_new: "1" 
+      });
     } catch (err) {
       console.error(err);
       alert("Failed to create product.");
@@ -83,12 +97,12 @@ const handleMultipleImageUpload = (id: number) => {
           <Button onClick={() => setModalOpen(true)}>Add Product</Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 l:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.map((product) => (
             <Card key={product.id} className="group hover:shadow-lg transition-shadow rounded-lg overflow-hidden">
               <div className="relative w-full h-48">
                 <img
-  src={product.gallery?.[0]?.fullUrl} // عرض أول صورة من المعرض
+                  src={product.gallery?.[0]?.fullUrl || "/placeholder-image.jpg"}
                   alt={product.name}
                   className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
@@ -103,7 +117,7 @@ const handleMultipleImageUpload = (id: number) => {
                 <div className="flex items-center justify-between mt-auto gap-2">
                   <div className="flex flex-col">
                     <span className="text-lg font-bold text-primary">${product.price}</span>
-                    {product.discount && (
+                    {product.discount && product.discount !== "0" && (
                       <span className="text-sm text-red-500 line-through">${product.discount}</span>
                     )}
                     {product.price_after_discount && (
@@ -126,7 +140,7 @@ const handleMultipleImageUpload = (id: number) => {
 
         <div className="flex justify-center mt-6 gap-2">
           <Button disabled={page <= 1} onClick={() => setPage(page - 1)}>Prev</Button>
-          <span>{page} / {totalPages}</span>
+          <span className="flex items-center">{page} / {totalPages}</span>
           <Button disabled={page >= totalPages} onClick={() => setPage(page + 1)}>Next</Button>
         </div>
       </div>
@@ -159,11 +173,34 @@ const handleMultipleImageUpload = (id: number) => {
               value={newProduct.des}
               onChange={(e) => setNewProduct({ ...newProduct, des: e.target.value })}
             />
-       <ImageUploader
-  label="Upload Product Images"
-  onUploadSuccess={handleMultipleImageUpload}
-/>
+            
+            {/* الـ Select المعدل */}
+            <Select
+              value={newProduct.is_new}
+              onValueChange={(value) => setNewProduct({ ...newProduct, is_new: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">New</SelectItem>
+                <SelectItem value="0">Used</SelectItem>
+              </SelectContent>
+            </Select>
 
+            {/* Image Uploader */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Product Images</label>
+              <ImageUploader
+                onUploadSuccess={handleMultipleImageUpload}
+                multiple={true}
+              />
+              {newProduct.gallery.length > 0 && (
+                <p className="text-sm text-green-600 mt-1">
+                  {newProduct.gallery.length} image(s) uploaded
+                </p>
+              )}
+            </div>
           </div>
           <DialogFooter className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>

@@ -1,28 +1,34 @@
 import React, { useEffect, useState, useContext, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send } from "lucide-react";
+import { Send, Search, MessageCircle, User } from "lucide-react";
 import { AuthContext } from "@/Context/AuthContext";
-import api from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+// Firebase imports
+import { db } from '@/lib/firebase';
+import { ref, push, set, onValue, off, get, query, orderByChild, update } from 'firebase/database';
 
 type Friend = {
   id: number;
   user_name: string;
-  profile_image: string;
-};
-
-type UserShort = {
-  id: number;
-  user_name: string;
   profile_image?: string;
+  user_type?: string;
+  first_name?: string;
+  last_name?: string;
 };
 
 type Message = {
-  id: number;
+  id: string;
   body: string;
   created_at: string;
-  sender: UserShort;
-  receiver: UserShort;
+  sender_id: number;
+  receiver_id: number;
+  sender_name?: string;
+  timestamp?: number;
+  type?: 'text' | 'image' | 'file';
+  read?: boolean;
 };
 
 export default function ContactsGroups() {
@@ -30,206 +36,472 @@ export default function ContactsGroups() {
   const currentUserId = user?.id;
 
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [filteredFriends, setFilteredFriends] = useState<Friend[]>([]);
   const [selectedFriend, setSelectedFriend] = useState<Friend | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [unread, setUnread] = useState<Record<number, boolean>>({});
-  const [lastMessageIds, setLastMessageIds] = useState<Record<number, number>>({});
+  const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
   const [lastMessages, setLastMessages] = useState<Record<number, string>>({});
+  const [unreadCounts, setUnreadCounts] = useState<Record<number, number>>({});
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [currentChatRoom, setCurrentChatRoom] = useState<string | null>(null);
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  // 🔥 دالة إرسال الإشعارات
+  const sendNotification = async (receiverId: number, notificationData: {
+    type: string;
+    title: string;
+    message: string;
+    sender_id: number;
+    sender_name: string;
+    sender_image: string;
+    data?: any;
+  }) => {
+    try {
+      if (!user) {
+        console.error("❌ Cannot send notification - user not found");
+        return;
+      }
 
-  // Load friends from context once user loads
-  useEffect(() => {
-    if (user?.friends && Array.isArray(user.friends)) {
-      setFriends(user.friends);
+      const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const notificationRef = ref(db, `notifications/${receiverId}/${notificationId}`);
+      
+      const fullNotificationData = {
+        ...notificationData,
+        id: notificationId,
+        timestamp: Date.now(),
+        read: false,
+        sender_type: 'user'
+      };
+
+      console.log("📨 Sending notification:", fullNotificationData);
+      await set(notificationRef, fullNotificationData);
+      
+      console.log(`✅ Notification sent to user ${receiverId}: ${notificationData.type}`);
+    } catch (error) {
+      console.error("❌ Error sending notification:", error);
     }
-  }, [user]);
+  };
 
-  // utility: scroll to bottom when messages change
+  // Generate room ID
+  const generateRoomId = (userId1: number, userId2: number) => {
+    return [userId1, userId2].sort((a, b) => a - b).join('_');
+  };
+
+  // Fetch friends from Firebase
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const fetchFriendsFromFirebase = () => {
+      const friendshipsRef = ref(db, 'friendships');
+      
+      const unsubscribe = onValue(friendshipsRef, (snapshot) => {
+        if (!snapshot.exists()) {
+          setFriends([]);
+          setFilteredFriends([]);
+          return;
+        }
+
+        const friendsList: Friend[] = [];
+
+        snapshot.forEach((childSnapshot) => {
+          const friendshipData = childSnapshot.val();
+          const friendshipId = childSnapshot.key;
+          
+          // Check if friendship involves current user and is accepted
+          if (friendshipId && friendshipId.includes(currentUserId.toString()) && 
+              friendshipData.status === 'friends') {
+            
+            const userIds = friendshipId.split('_').map(Number);
+            const otherUserId = userIds.find(id => id !== currentUserId);
+            
+            if (otherUserId) {
+              const otherUser: Friend = {
+                id: otherUserId,
+                user_name: friendshipData.user1_id === otherUserId ? 
+                          friendshipData.user1_name : friendshipData.user2_name,
+                profile_image: friendshipData.user1_id === otherUserId ? 
+                              friendshipData.user1_image : friendshipData.user2_image,
+                user_type: friendshipData.user1_id === otherUserId ? 
+                          friendshipData.user1_type : friendshipData.user2_type,
+                first_name: "",
+                last_name: ""
+              };
+              friendsList.push(otherUser);
+            }
+          }
+        });
+
+        setFriends(friendsList);
+        setFilteredFriends(friendsList);
+        
+        // Fetch last messages for all friends
+        fetchLastMessagesForFriends(friendsList);
+      });
+
+      return unsubscribe;
+    };
+
+    const unsubscribe = fetchFriendsFromFirebase();
+    return () => unsubscribe();
+  }, [currentUserId]);
+
+  // Filter friends based on search
+  useEffect(() => {
+    if (searchTerm.trim() === "") {
+      setFilteredFriends(friends);
+    } else {
+      const filtered = friends.filter(friend =>
+        friend.user_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (friend.first_name && friend.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (friend.last_name && friend.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
+      setFilteredFriends(filtered);
+    }
+  }, [searchTerm, friends]);
+
+  // Fetch last messages for all friends
+  const fetchLastMessagesForFriends = async (friendsList: Friend[]) => {
+    if (!currentUserId) return;
+
+    const lastMessagesMap: Record<number, string> = {};
+    const unreadCountsMap: Record<number, number> = {};
+
+    for (const friend of friendsList) {
+      const roomId = generateRoomId(currentUserId, friend.id);
+      const messagesRef = ref(db, `chats/${roomId}/messages`);
+      const messagesQuery = query(messagesRef, orderByChild('timestamp'));
+      
+      try {
+        const snapshot = await get(messagesQuery);
+        if (snapshot.exists()) {
+          const messages: Message[] = [];
+          let unreadCount = 0;
+
+          snapshot.forEach((childSnapshot) => {
+            const messageData = childSnapshot.val();
+            const message: Message = {
+              id: childSnapshot.key || messageData.id,
+              body: messageData.body,
+              created_at: messageData.created_at,
+              sender_id: messageData.sender_id,
+              receiver_id: messageData.receiver_id,
+              sender_name: messageData.sender_name,
+              timestamp: messageData.timestamp,
+              type: messageData.type || 'text',
+              read: messageData.read || false
+            };
+            messages.push(message);
+
+            // Count unread messages from this friend
+            if (message.sender_id === friend.id && !message.read) {
+              unreadCount++;
+            }
+          });
+
+          // Get last message
+          if (messages.length > 0) {
+            const lastMsg = messages[messages.length - 1];
+            lastMessagesMap[friend.id] = lastMsg.body;
+          }
+
+          // Set unread count
+          if (unreadCount > 0) {
+            unreadCountsMap[friend.id] = unreadCount;
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching messages for friend:", friend.id, error);
+      }
+    }
+
+    setLastMessages(lastMessagesMap);
+    setUnreadCounts(unreadCountsMap);
+  };
+
+  // Setup real-time chat listener
+  const setupChatListener = (friendId: number) => {
+    if (!currentUserId) return;
+
+    // Stop previous listener
+    if (currentChatRoom) {
+      const oldRef = ref(db, `chats/${currentChatRoom}/messages`);
+      off(oldRef);
+    }
+
+    const roomId = generateRoomId(currentUserId, friendId);
+    setCurrentChatRoom(roomId);
+
+    const messagesRef = ref(db, `chats/${roomId}/messages`);
+    const messagesQuery = query(messagesRef, orderByChild('timestamp'));
+    
+    const unsubscribe = onValue(messagesQuery, (snapshot) => {
+      if (!snapshot.exists()) {
+        setMessages([]);
+        return;
+      }
+
+      const firebaseMessages: Message[] = [];
+      snapshot.forEach((childSnapshot) => {
+        const messageData = childSnapshot.val();
+        firebaseMessages.push({
+          id: childSnapshot.key || messageData.id,
+          body: messageData.body,
+          created_at: messageData.created_at,
+          sender_id: messageData.sender_id,
+          receiver_id: messageData.receiver_id,
+          sender_name: messageData.sender_name,
+          timestamp: messageData.timestamp,
+          type: messageData.type || 'text',
+          read: messageData.read || false
+        });
+      });
+
+      // Sort messages by timestamp
+      const sortedMessages = firebaseMessages.sort((a, b) => 
+        (a.timestamp || 0) - (b.timestamp || 0)
+      );
+
+      setMessages(sortedMessages);
+
+      // Mark messages as read when opening chat
+      markMessagesAsRead(friendId, sortedMessages);
+    });
+
+    return unsubscribe;
+  };
+
+  // Mark messages as read
+  const markMessagesAsRead = async (friendId: number, messages: Message[]) => {
+    if (!currentUserId) return;
+
+    try {
+      const roomId = generateRoomId(currentUserId, friendId);
+      const updates: any = {};
+
+      messages.forEach(message => {
+        if (message.sender_id === friendId && !message.read) {
+          updates[`chats/${roomId}/messages/${message.id}/read`] = true;
+        }
+      });
+
+      if (Object.keys(updates).length > 0) {
+        await update(ref(db), updates);
+        
+        // Update unread counts
+        setUnreadCounts(prev => ({
+          ...prev,
+          [friendId]: 0
+        }));
+      }
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  };
+
+  // Select friend for chat
+  const handleSelectFriend = (friend: Friend) => {
+    setSelectedFriend(friend);
+    setMessages([]);
+    const unsubscribe = setupChatListener(friend.id);
+    
+    // Cleanup on component unmount or friend change
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  };
+
+  // 🔥 Send message with notification
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedFriend || !currentUserId || !user) return;
+
+    try {
+      const roomId = generateRoomId(currentUserId, selectedFriend.id);
+      const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const messageData = {
+        id: messageId,
+        body: newMessage.trim(),
+        sender_id: currentUserId,
+        receiver_id: selectedFriend.id,
+        sender_name: user.user_name || 'User',
+        timestamp: Date.now(),
+        created_at: new Date().toISOString(),
+        type: 'text',
+        read: false
+      };
+
+      // Send to Firebase
+      const messagesRef = ref(db, `chats/${roomId}/messages`);
+      const newMessageRef = push(messagesRef);
+      await set(newMessageRef, messageData);
+
+      // 🔥 إرسال إشعار للمستقبل
+      await sendNotification(selectedFriend.id, {
+        type: 'new_message',
+        title: 'New Message',
+        message: `New message from ${user.user_name}: ${newMessage.trim()}`,
+        sender_id: currentUserId,
+        sender_name: user.user_name,
+        sender_image: user.profile_image || '',
+        data: {
+          message_id: messageId,
+          room_id: roomId,
+          message_preview: newMessage.trim().substring(0, 50) + (newMessage.trim().length > 50 ? '...' : ''),
+          chat_type: 'direct_message'
+        }
+      });
+
+      setNewMessage("");
+      
+      // Update last message
+      setLastMessages(prev => ({
+        ...prev,
+        [selectedFriend.id]: newMessage.trim()
+      }));
+
+      console.log(`✅ Message sent to ${selectedFriend.user_name} with notification`);
+
+    } catch (error) {
+      console.error("Error sending message:", error);
+    }
+  };
+
+  // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Fetch full message history for opened friend
-  const fetchMessagesForFriend = async (friendId: number) => {
-    try {
-      const res = await api.get("/chat/messages", {
-        params: { receiver_id: friendId },
-      });
-      const data: Message[] = res?.data?.data ?? [];
-
-      // set full messages if the opened friend is the selected one
-      setMessages(data);
-
-      // update last message info
-      if (data.length > 0) {
-        const last = data[data.length - 1];
-        setLastMessages((p) => ({ ...p, [friendId]: last.body }));
-        setLastMessageIds((p) => ({ ...p, [friendId]: last.id }));
-      }
-
-      // mark as read locally since user opened the modal
-      setUnread((p) => ({ ...p, [friendId]: false }));
-
-      // OPTIONAL: inform backend that messages were read (if your API supports it)
-      // await api.post("/chat/mark-read", { receiver_id: friendId });
-    } catch (err) {
-      console.error("fetchMessagesForFriend error:", err);
+  // Handle enter key press
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
     }
   };
 
-  // Fetch only last message for friend (lightweight)
-  const fetchLastMessageForFriend = async (friendId: number) => {
-    try {
-      const res = await api.get("/chat/messages", {
-        params: { receiver_id: friendId },
-      });
-      const data: Message[] = res?.data?.data ?? [];
-      if (!Array.isArray(data) || data.length === 0) {
-        return;
-      }
-      const last = data[data.length - 1];
-
-      const prevLastId = lastMessageIds[friendId];
-      // update last message text and id
-      setLastMessages((p) => ({ ...p, [friendId]: last.body }));
-      setLastMessageIds((p) => ({ ...p, [friendId]: last.id }));
-
-      // if the last message sender is NOT me and it's a new message (id changed),
-      // mark unread = true (only if user hasn't opened the modal with that friend)
-      if (last.sender?.id !== currentUserId && last.id !== prevLastId) {
-        // only mark unread if modal is NOT open for this friend
-        if (!selectedFriend || selectedFriend.id !== friendId) {
-          setUnread((p) => ({ ...p, [friendId]: true }));
-        }
-        // move this friend to the top of the list
-        setFriends((prev) => {
-          const copy = [...prev];
-          const idx = copy.findIndex((f) => f.id === friendId);
-          if (idx > -1) {
-            const [f] = copy.splice(idx, 1);
-            return [f, ...copy];
-          }
-          return copy;
-        });
-      } else {
-        // if message is from me or id didn't change, do nothing (or clear unread if it's open)
-        if (selectedFriend && selectedFriend.id === friendId) {
-          setUnread((p) => ({ ...p, [friendId]: false }));
-        }
-      }
-    } catch (err) {
-      console.error("fetchLastMessageForFriend error:", err);
+  // Get display name for friend
+  const getDisplayName = (friend: Friend) => {
+    if (friend.first_name && friend.last_name) {
+      return `${friend.first_name} ${friend.last_name}`;
     }
+    return friend.user_type === 'doctor' ? `Dr. ${friend.user_name}` : friend.user_name;
   };
 
-  // Polling: periodically check last message for each friend
-  // useEffect(() => {
-  //   if (!friends || friends.length === 0) return;
+  // 🔥 Listen for new notifications (optional - for real-time badge updates)
+  useEffect(() => {
+    if (!currentUserId) return;
 
-  //   // initial fill of last messages
-  //   friends.forEach((f) => {
-  //     fetchLastMessageForFriend(f.id);
-  //   });
+    const notificationsRef = ref(db, `notifications/${currentUserId}`);
+    
+    const unsubscribe = onValue(notificationsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        // يمكننا استخدام هذا لتحديث الـ badges أو عرض إشعارات فورية
+        console.log("📬 New notifications received");
+        
+        // يمكننا إضافة toast notification هنا لو عاوزين
+        // toast.success("New message received!");
+      }
+    });
 
-  //   // Interval to check for updates every minute (60000 ms)
-  //   const interval = setInterval(() => {
-  //     friends.forEach((f) => {
-  //       fetchLastMessageForFriend(f.id);
-  //     });
-  //   }, 60000); // 1 minute
-
-  //   // Cleanup interval on component unmount or when friends change
-  //   return () => clearInterval(interval);
-  // }, [friends, currentUserId, selectedFriend, lastMessageIds]);
-
-  // When selecting a friend: open modal, fetch full messages and clear unread
-  const openChatWith = (friend: Friend) => {
-    setSelectedFriend(friend);
-    setUnread((p) => ({ ...p, [friend.id]: false }));
-    fetchMessagesForFriend(friend.id);
-  };
-
-  // Send a new message to selected friend
-  const handleSend = async () => {
-    if (!newMessage.trim() || !selectedFriend) return;
-    try {
-      await api.post("/chat/send", {
-        body: newMessage,
-        receiver_id: selectedFriend.id,
-      });
-      setNewMessage("");
-      // refresh messages immediately (server will include the sent message)
-      fetchMessagesForFriend(selectedFriend.id);
-
-      // also clear unread for that friend (since this is my outgoing)
-      setUnread((p) => ({ ...p, [selectedFriend.id]: false }));
-    } catch (err) {
-      console.error("send message error:", err);
-    }
-  };
-
-  // computed list: keep current ordering (we already move unread friends to top when they get new msg)
-  const visibleFriends = friends;
+    return () => {
+      off(notificationsRef);
+    };
+  }, [currentUserId]);
 
   return (
-    <div className="fixed top-15 right-5 w-80 bg-white rounded-lg shadow-md p-5 space-y-6 h-[90vh] overflow-y-auto">
-      <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">
-        CONTACTS
-      </h3>
+    <div className="fixed top-15 right-5 w-80 bg-white rounded-lg shadow-lg border border-gray-200 p-4 h-[90vh] flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-800">Friends</h2>
+        <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+          {filteredFriends.length} friends
+        </Badge>
+      </div>
 
-      <div className="space-y-2">
-        {visibleFriends.map((friend) => (
-          <div
-            key={friend.id}
-            onClick={() => openChatWith(friend)}
-            className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-md transition-colors cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <img
-                  src={friend.profile_image}
-                  alt={friend.user_name}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-                {unread[friend.id] && (
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-                )}
-              </div>
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+        <Input
+          placeholder="Search friends..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10 bg-gray-50 border-gray-200"
+        />
+      </div>
 
-              <div className="flex flex-col">
-                <span className="font-medium text-gray-800">
-                  {friend.user_name}
-                </span>
-                <span className="text-xs text-gray-500 truncate w-40">
-                  {lastMessages[friend.id] || "No messages yet"}
-                </span>
+      {/* Friends List */}
+      <div className="flex-1 overflow-y-auto space-y-2">
+        {filteredFriends.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            <User className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+            <p>No friends found</p>
+            {searchTerm && (
+              <p className="text-sm mt-1">Try a different search term</p>
+            )}
+          </div>
+        ) : (
+          filteredFriends.map((friend) => (
+            <div
+              key={friend.id}
+              onClick={() => handleSelectFriend(friend)}
+              className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all hover:bg-blue-50 ${
+                selectedFriend?.id === friend.id ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'
+              }`}
+            >
+              <Avatar className="border-2 border-white shadow-sm">
+                <AvatarImage src={friend.profile_image} alt={getDisplayName(friend)} />
+                <AvatarFallback className="bg-gradient-to-br from-blue-100 to-purple-100">
+                  {friend.user_name?.charAt(0)?.toUpperCase() || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-gray-800 truncate">
+                    {getDisplayName(friend)}
+                  </p>
+                  {unreadCounts[friend.id] > 0 && (
+                    <Badge className="bg-red-500 text-white text-xs min-w-[20px] h-5 flex items-center justify-center">
+                      {unreadCounts[friend.id]}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-gray-500 truncate">
+                  {lastMessages[friend.id] || 'No messages yet'}
+                </p>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       {/* Chat Modal */}
       {selectedFriend && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md h-[80vh] flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md h-[80vh] flex flex-col">
             {/* Header */}
-            <div className="flex items-center gap-3 border-b p-4">
-              <img
-                src={selectedFriend.profile_image}
-                alt={selectedFriend.user_name}
-                className="w-10 h-10 rounded-full object-cover"
-              />
-              <div>
-                <p className="font-semibold">{selectedFriend.user_name}</p>
-                <p className="text-sm text-gray-500">Chat</p>
+            <div className="flex items-center gap-3 border-b p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-t-xl">
+              <Avatar>
+                <AvatarImage src={selectedFriend.profile_image} alt={getDisplayName(selectedFriend)} />
+                <AvatarFallback>
+                  {selectedFriend.user_name?.charAt(0)?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <p className="font-semibold text-gray-800">
+                  {getDisplayName(selectedFriend)}
+                </p>
+                <p className="text-sm text-gray-500">Online now</p>
               </div>
               <Button
                 variant="ghost"
-                className="ml-auto"
+                size="sm"
                 onClick={() => setSelectedFriend(null)}
+                className="text-gray-500 hover:text-gray-700"
               >
                 ✕
               </Button>
@@ -237,44 +509,67 @@ export default function ContactsGroups() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
-              {Array.isArray(messages) && messages.length > 0 ? (
+              {messages.length === 0 ? (
+                <div className="text-center text-gray-400 py-12">
+                  <MessageCircle className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                  <p>No messages yet</p>
+                  <p className="text-sm mt-1">Start the conversation!</p>
+                </div>
+              ) : (
                 messages.map((msg) => {
-                  const isMine = msg.sender?.id === currentUserId;
+                  const isMine = msg.sender_id === currentUserId;
                   return (
                     <div
                       key={msg.id}
                       className={`flex ${isMine ? "justify-end" : "justify-start"}`}
                     >
                       <div
-                        className={`px-3 py-2 rounded-lg max-w-xs break-words ${
-                          isMine ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-900"
+                        className={`max-w-xs px-4 py-2 rounded-2xl ${
+                          isMine
+                            ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-br-md"
+                            : "bg-white border border-gray-200 text-gray-800 rounded-bl-md shadow-sm"
                         }`}
                       >
-                        <div className="whitespace-pre-wrap">{msg.body}</div>
-                        <div className="text-xs text-gray-500 mt-1 text-right">
-                          {new Date(msg.created_at).toLocaleString()}
-                        </div>
+                        <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
+                        <p className={`text-xs mt-1 ${isMine ? 'text-blue-100' : 'text-gray-500'}`}>
+                          {new Date(msg.created_at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
+                        {isMine && msg.read && (
+                          <p className="text-xs text-blue-200 mt-1">✓ Read</p>
+                        )}
                       </div>
                     </div>
                   );
                 })
-              ) : (
-                <p className="text-gray-400">No messages yet</p>
               )}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Input */}
-            <div className="p-4 border-t flex items-center gap-2">
-              <Input
-                placeholder="Type a message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              />
-              <Button size="icon" onClick={handleSend}>
-                <Send className="w-5 h-5" />
-              </Button>
+            <div className="p-4 border-t bg-white rounded-b-xl">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Type your message..."
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className="flex-1 rounded-full"
+                />
+                <Button
+                  onClick={sendMessage}
+                  disabled={!newMessage.trim()}
+                  className="rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                  size="icon"
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Press Enter to send • Messages will trigger notifications
+              </p>
             </div>
           </div>
         </div>

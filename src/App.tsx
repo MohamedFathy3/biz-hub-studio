@@ -6,10 +6,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Dashboard from "./pages/Dashboard";
 import Store from "./pages/Store";
 import Jobs from "./pages/Jobs";
+import Authjobs from "./pages/authjobs";
+import AuthjobsDetiles from "./pages/authjobsDetiles";
 import JobDetail from "./pages/JobDetail";
 import Groups from "./pages/Groups";
 import Badges from "./pages/Badges";
 import Profile from "./pages/profile";
+import Panding_frendes from "./pages/pandding_request";
 import Stories from "./pages/videos";
 import NotFound from "./pages/NotFound";
 import Event from "./pages/event";
@@ -23,7 +26,6 @@ import UserProfile from './pages/UserProfile';
 import UsersList from './pages/UsersList';
 import Rent from './pages/rent';
 import RentDetail from './pages/rentDetail';
-
 import { AuthProvider } from "@/Context/AuthContext";
 import PrivateRoute from "@/components/layout/PrivateRoute"; // تأكد من المسار الصحيح
 
@@ -46,8 +48,12 @@ const App = () => (
            
             <Route path="/RentDetail/:id" element={<PrivateRoute element={<RentDetail />} />} />
             <Route path="/jobs" element={<PrivateRoute element={<Jobs />} />} />
-            <Route path="/User" element={<PrivateRoute element={<UsersList />} />} />
+            <Route path="/Alljobs" element={<PrivateRoute element={<Authjobs />} />} />
+            <Route path="/jobsDetiles/:id" element={<PrivateRoute element={<AuthjobsDetiles />} />} />
             <Route path="/jobs/:id" element={<PrivateRoute element={<JobDetail />} />} />
+
+            <Route path="/PendingRequests" element={<PrivateRoute element={<Panding_frendes />} />} />
+            <Route path="/User" element={<PrivateRoute element={<UsersList />} />} />
             <Route path="/groups" element={<PrivateRoute element={<Groups />} />} />
             <Route path="/badges" element={<PrivateRoute element={<Badges />} />} />
             <Route path="/profile" element={<PrivateRoute element={<Profile />} />} />

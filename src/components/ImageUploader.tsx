@@ -6,9 +6,10 @@ import api from "@/lib/api";
 type Props = {
   label?: string;
   onUploadSuccess: (id: number) => void; 
-    multiple?: boolean;
-  accept?: string; // عشان نحدد نوع الملفات (صور / PDF / Docs ...)
+  multiple?: boolean;
+  accept?: string;
   preview?: boolean;
+  uniqueId?: string;
 };
 
 export default function FileUploader({
@@ -17,6 +18,7 @@ export default function FileUploader({
   multiple = true,
   accept = "image/*",
   preview = true,
+  uniqueId = "file-upload",
 }: Props) {
   const [fileNames, setFileNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -75,22 +77,21 @@ export default function FileUploader({
         </label>
       )}
 
-     <div 
-  className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:bg-gray-50"
-  onClick={() => document.getElementById("file-upload")?.click()}
->
-  <UploadCloud className="text-gray-500 mb-2" size={28} />
-  <p className="text-gray-600 text-sm">Click to upload or drag & drop</p>
-  <input
-    type="file"
-    accept={accept}
-    onChange={handleFileChange}
-    className="hidden"
-    id="file-upload"
-    multiple={multiple}
-  />
-</div>
-
+      <div 
+        className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 cursor-pointer hover:bg-gray-50"
+        onClick={() => document.getElementById(uniqueId)?.click()}
+      >
+        <UploadCloud className="text-gray-500 mb-2" size={28} />
+        <p className="text-gray-600 text-sm">Click to upload or drag & drop</p>
+        <input
+          type="file"
+          accept={accept}
+          onChange={handleFileChange}
+          className="hidden"
+          id={uniqueId}
+          multiple={multiple}
+        />
+      </div>
 
       {/* معاينة الصور */}
       {preview && previewUrls.length > 0 && (

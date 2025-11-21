@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+"use client";
+import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import api from '@/lib/api';
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -9,7 +10,26 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Search, Filter, UserPlus, Eye, ChevronLeft, ChevronRight, GraduationCap, Briefcase, Calendar } from "lucide-react";
+import { 
+  Search, 
+  Filter, 
+  UserPlus, 
+  UserCheck, 
+  UserX, 
+  Clock,
+  Eye, 
+  ChevronLeft, 
+  ChevronRight, 
+  GraduationCap, 
+  Briefcase, 
+  Calendar,
+  MessageCircle
+} from "lucide-react";
+
+// Firebase imports
+import { db } from '@/lib/firebase';
+import { ref, set, onValue, off, push, update } from 'firebase/database';
+import { AuthContext } from "@/Context/AuthContext";
 
 interface User {
   id: number;
@@ -39,8 +59,12 @@ interface Filters {
   experience_years?: number;
 }
 
+// نوع طلب الصداقة
+type FriendRequestStatus = 'none' | 'pending' | 'accepted' | 'friends' | 'rejected';
+
 export default function UsersList() {
   const navigate = useNavigate();
+  const { user: currentUser } = useContext(AuthContext);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -48,14 +72,56 @@ export default function UsersList() {
   const [totalUsers, setTotalUsers] = useState(0);
   const [perPage, setPerPage] = useState(5);
   const [showFilters, setShowFilters] = useState(false);
+  
+  // حالة طلبات الصداقة
+  const [friendRequests, setFriendRequests] = useState<{[key: number]: FriendRequestStatus}>({});
 
   // حالة الفلاتر
   const [filters, setFilters] = useState<Filters>({});
   const [tempFilters, setTempFilters] = useState<Filters>({});
 
+  // دالة علشان نعمل room ID فريد للصداقات
+  const generateFriendshipId = (userId1: number, userId2: number) => {
+    return [userId1, userId2].sort((a, b) => a - b).join('_');
+  };
+
+  // 🔥 الاستماع لطلبات الصداقة في real-time
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const friendshipRef = ref(db, 'friendships');
+    
+    const unsubscribe = onValue(friendshipRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+
+      const friendships: {[key: number]: FriendRequestStatus} = {};
+      
+      snapshot.forEach((childSnapshot) => {
+        const friendshipData = childSnapshot.val();
+        const friendshipId = childSnapshot.key;
+        
+        // نشوف لو الصداقة متعلقة بالـ user الحالي
+        if (friendshipId && friendshipId.includes(currentUser.id.toString())) {
+          const userIds = friendshipId.split('_').map(Number);
+          const otherUserId = userIds.find(id => id !== currentUser.id);
+          
+          if (otherUserId) {
+            friendships[otherUserId] = friendshipData.status || 'none';
+          }
+        }
+      });
+      
+      setFriendRequests(friendships);
+    });
+
+    return () => {
+      off(friendshipRef);
+    };
+  }, [currentUser]);
+
   // جلب بيانات المستخدمين
   const fetchUsers = async (page = 1) => {
-    setLoading(false);
+    setLoading(true);
     try {
       // تنظيف الفلاتر من القيم الفارغة
       const cleanFilters = Object.fromEntries(
@@ -74,8 +140,6 @@ export default function UsersList() {
         page: page
       };
 
-      console.log("Sending payload:", payload); // للتصحيح
-
       const response = await api.post("/user/index", payload);
       
       if (response.data.result === "Success") {
@@ -83,8 +147,6 @@ export default function UsersList() {
         setTotalPages(response.data.meta.last_page);
         setCurrentPage(response.data.meta.current_page);
         setTotalUsers(response.data.meta.total);
-        
-        console.log("Users data:", response.data.data); // للتصحيح
       } else {
         console.error("API returned error:", response.data);
         alert("Failed to load users: " + (response.data.message || "Unknown error"));
@@ -92,7 +154,6 @@ export default function UsersList() {
     } catch (error: any) {
       console.error("Error fetching users:", error);
       console.error("Error details:", error.response?.data);
-      alert("Failed to load users. Check console for details.");
     } finally {
       setLoading(false);
     }
@@ -142,18 +203,312 @@ export default function UsersList() {
     navigate(`/profile/${userId}`);
   };
 
+  // فتح الشات مع المستخدم
+  const handleSendMessage = (userId: number) => {
+    navigate(`/messages?user_id=${userId}`);
+  };
+
+  // 🔥 إرسال طلب صداقة مع Firebase
   const addFriend = async (userId: number) => {
+    if (!currentUser) return;
+
     try {
-      const res = await api.post(`/friend-requests/${userId}`);
+      const friendshipId = generateFriendshipId(currentUser.id, userId);
       
-      if (res.data.result === "Success") {
-        alert(`Friend request sent successfully ✅`);
-      } else {
-        alert(res.data.message || "Failed to send friend request ❌");
-      }
+      // نعمل طلب صداقة في Firebase
+      const friendshipRef = ref(db, `friendships/${friendshipId}`);
+      
+      const friendRequestData = {
+        user1_id: currentUser.id,
+        user1_name: currentUser.user_name,
+        user1_image: currentUser.profile_image,
+        user2_id: userId,
+        user2_name: users.find(u => u.id === userId)?.user_name,
+        user2_image: users.find(u => u.id === userId)?.profile_image,
+        status: 'pending',
+        requested_by: currentUser.id,
+        created_at: Date.now(),
+        updated_at: Date.now()
+      };
+
+      await set(friendshipRef, friendRequestData);
+
+      // نرسل إشعار للـ backend علشان التوثيق
+      await api.post(`/friend-requests/${userId}`);
+      
+      // نحدث الحالة محلياً
+      setFriendRequests(prev => ({
+        ...prev,
+        [userId]: 'pending'
+      }));
+
+      alert(`Friend request sent successfully ✅`);
+
     } catch (error: any) {
       console.error("Error adding friend:", error);
       alert("Something went wrong while sending friend request.");
+    }
+  };
+
+  // 🔥 قبول طلب صداقة
+  const acceptFriendRequest = async (userId: number) => {
+    if (!currentUser) return;
+
+    try {
+      const friendshipId = generateFriendshipId(currentUser.id, userId);
+      const friendshipRef = ref(db, `friendships/${friendshipId}`);
+      
+      await update(friendshipRef, {
+        status: 'friends',
+        updated_at: Date.now(),
+        accepted_at: Date.now()
+      });
+
+      // نرسل للـ backend علشان التوثيق
+      await api.put(`/friend-requests/${userId}/accept`);
+
+      // نحدث الحالة محلياً
+      setFriendRequests(prev => ({
+        ...prev,
+        [userId]: 'friends'
+      }));
+
+      alert("Friend request accepted! 🎉");
+
+    } catch (error: any) {
+      console.error("Error accepting friend request:", error);
+      alert("Failed to accept friend request");
+    }
+  };
+
+  // 🔥 رفض طلب صداقة
+  const rejectFriendRequest = async (userId: number) => {
+    if (!currentUser) return;
+
+    try {
+      const friendshipId = generateFriendshipId(currentUser.id, userId);
+      const friendshipRef = ref(db, `friendships/${friendshipId}`);
+      
+      await update(friendshipRef, {
+        status: 'rejected',
+        updated_at: Date.now(),
+        rejected_at: Date.now()
+      });
+
+      // نرسل للـ backend علشان التوثيق
+      await api.put(`/friend-requests/${userId}/reject`);
+
+      // نحدث الحالة محلياً
+      setFriendRequests(prev => ({
+        ...prev,
+        [userId]: 'rejected'
+      }));
+
+      alert("Friend request rejected");
+
+    } catch (error: any) {
+      console.error("Error rejecting friend request:", error);
+      alert("Failed to reject friend request");
+    }
+  };
+
+  // 🔥 إلغاء طلب الصداقة
+  const cancelFriendRequest = async (userId: number) => {
+    if (!currentUser) return;
+
+    try {
+      const friendshipId = generateFriendshipId(currentUser.id, userId);
+      const friendshipRef = ref(db, `friendships/${friendshipId}`);
+      
+      // نحذف طلب الصداقة
+      await set(friendshipRef, null);
+
+      // نحدث الحالة محلياً
+      setFriendRequests(prev => ({
+        ...prev,
+        [userId]: 'none'
+      }));
+
+      alert("Friend request cancelled");
+
+    } catch (error: any) {
+      console.error("Error cancelling friend request:", error);
+      alert("Failed to cancel friend request");
+    }
+  };
+
+  // 🔥 إزالة صديق
+  const removeFriend = async (userId: number) => {
+    if (!currentUser) return;
+
+    try {
+      const friendshipId = generateFriendshipId(currentUser.id, userId);
+      const friendshipRef = ref(db, `friendships/${friendshipId}`);
+      
+      // نحذف الصداقة
+      await set(friendshipRef, null);
+
+      // نرسل للـ backend علشان التوثيق
+      await api.delete(`/friends/${userId}`);
+
+      // نحدث الحالة محلياً
+      setFriendRequests(prev => ({
+        ...prev,
+        [userId]: 'none'
+      }));
+
+      alert("Friend removed successfully");
+
+    } catch (error: any) {
+      console.error("Error removing friend:", error);
+      alert("Failed to remove friend");
+    }
+  };
+
+  // 🔥 دالة علشان نعرض زر الصداقة المناسب
+  const renderFriendButton = (userId: number) => {
+    const status = friendRequests[userId] || 'none';
+
+    switch (status) {
+      case 'none':
+        return (
+          <Button
+            size="sm"
+            onClick={() => addFriend(userId)}
+            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700"
+          >
+            <UserPlus className="w-3 h-3" />
+            Add friend
+          </Button>
+        );
+
+      case 'pending':
+        // نحتاج نعرف مين اللي أرسل الطلب
+        const friendshipId = generateFriendshipId(currentUser!.id, userId);
+        const friendshipRef = ref(db, `friendships/${friendshipId}`);
+        
+        // في تطبيق حقيقي، هنحتاج نجيب البيانات من Firebase علشان نعرف
+        // لكن حالياً بنفترض إن الطلب مرسل مني
+        const isSentByMe = true;
+        
+        if (isSentByMe) {
+          return (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => cancelFriendRequest(userId)}
+              className="flex items-center gap-1 border-yellow-500 text-yellow-600 hover:bg-yellow-50"
+            >
+              <Clock className="w-3 h-3" />
+              Cancel
+            </Button>
+          );
+        } else {
+          return (
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                onClick={() => acceptFriendRequest(userId)}
+                className="flex items-center gap-1 bg-green-600 hover:bg-green-700"
+              >
+                <UserCheck className="w-3 h-3" />
+                Accept
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => rejectFriendRequest(userId)}
+                className="flex items-center gap-1 border-red-500 text-red-600 hover:bg-red-50"
+              >
+                <UserX className="w-3 h-3" />
+                Reject
+              </Button>
+            </div>
+          );
+        }
+
+      case 'friends':
+        return (
+          <div className="flex gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled
+              className="flex items-center gap-1 border-green-500 text-green-600"
+            >
+              <UserCheck className="w-3 h-3" />
+              Friends
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => removeFriend(userId)}
+              className="flex items-center gap-1 border-red-500 text-red-600 hover:bg-red-50"
+            >
+              <UserX className="w-3 h-3" />
+              Remove
+            </Button>
+          </div>
+        );
+
+      case 'rejected':
+        return (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => addFriend(userId)}
+            className="flex items-center gap-1 border-gray-500 text-gray-600 hover:bg-gray-50"
+          >
+            <UserPlus className="w-3 h-3" />
+            Try Again
+          </Button>
+        );
+
+      default:
+        return (
+          <Button
+            size="sm"
+            onClick={() => addFriend(userId)}
+            className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700"
+          >
+            <UserPlus className="w-3 h-3" />
+            Add friend
+          </Button>
+        );
+    }
+  };
+
+  // 🔥 Badge علشان حالة الصداقة
+  const renderFriendBadge = (userId: number) => {
+    const status = friendRequests[userId] || 'none';
+
+    switch (status) {
+      case 'pending':
+        return (
+          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs">
+            <Clock className="w-3 h-3 mr-1" />
+            Pending
+          </Badge>
+        );
+      
+      case 'friends':
+        return (
+          <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+            <UserCheck className="w-3 h-3 mr-1" />
+            Friends
+          </Badge>
+        );
+      
+      case 'rejected':
+        return (
+          <Badge variant="secondary" className="bg-red-100 text-red-800 text-xs">
+            <UserX className="w-3 h-3 mr-1" />
+            Rejected
+          </Badge>
+        );
+      
+      default:
+        return null;
     }
   };
 
@@ -163,8 +518,8 @@ export default function UsersList() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Friends</h1>
-            <p className="text-gray-600">Find and connect with dental professionals</p>
+            <h1 className="text-3xl font-bold text-gray-900">Medical Professionals</h1>
+            <p className="text-gray-600">Find and connect with healthcare professionals</p>
           </div>
         </div>
 
@@ -345,9 +700,9 @@ export default function UsersList() {
             </div>
 
             {/* Users Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-2 mb-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
               {users.map((user) => (
-                <Card key={user.id} className="hover:shadow-lg transition-shadow duration-300">
+                <Card key={user.id} className="hover:shadow-lg transition-shadow duration-300 border border-gray-200">
                   <CardContent className="p-0">
                     {/* Cover Image Placeholder */}
                     <div className="h-24 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-t-lg"></div>
@@ -356,17 +711,23 @@ export default function UsersList() {
                     <div className="px-4 pb-4">
                       {/* Profile Header */}
                       <div className="flex items-start justify-between -mt-12 mb-4">
-                        <Avatar 
-                          className="w-20 h-20 border-4 border-white cursor-pointer"
-                          onClick={() => goToProfile(user.id)}
-                        >
-                          <AvatarImage src={user.profile_image} alt={user.user_name} />
-                          <AvatarFallback className="text-lg bg-blue-100 text-blue-600">
-                            {user.first_name?.[0]}{user.last_name?.[0]}
-                          </AvatarFallback>
-                        </Avatar>
+                        <div className="flex items-start gap-3">
+                          <Avatar 
+                            className="w-20 h-20 border-4 border-white cursor-pointer shadow-lg"
+                            onClick={() => goToProfile(user.id)}
+                          >
+                            <AvatarImage src={user.profile_image} alt={user.user_name} />
+                            <AvatarFallback className="text-lg bg-blue-100 text-blue-600 font-semibold">
+                              {user.first_name?.[0]}{user.last_name?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          
+                          <div className="mt-2">
+                            {renderFriendBadge(user.id)}
+                          </div>
+                        </div>
                         
-                        <div className="flex gap-2 mt-2">
+                        <div className="flex flex-col gap-2 mt-2">
                           <Button
                             variant="outline"
                             size="sm"
@@ -377,13 +738,15 @@ export default function UsersList() {
                             View
                           </Button>
                           <Button
+                            variant="outline"
                             size="sm"
-                            onClick={() => addFriend(user.id)}
+                            onClick={() => handleSendMessage(user.id)}
                             className="flex items-center gap-1"
                           >
-                            <UserPlus className="w-3 h-3" />
-                            Connect
+                            <MessageCircle className="w-3 h-3" />
+                            Message
                           </Button>
+                          {renderFriendButton(user.id)}
                         </div>
                       </div>
 
@@ -391,7 +754,7 @@ export default function UsersList() {
                       <div className="space-y-3">
                         <div>
                           <h3 
-                            className="font-semibold text-lg cursor-pointer hover:text-blue-600"
+                            className="font-semibold text-lg cursor-pointer hover:text-blue-600 transition-colors"
                             onClick={() => goToProfile(user.id)}
                           >
                             {user.first_name} {user.last_name}
@@ -402,7 +765,7 @@ export default function UsersList() {
                         {/* Specializations */}
                         <div className="flex flex-wrap gap-1">
                           {user.fields?.slice(0, 3).map((field) => (
-                            <Badge key={field.id} variant="secondary" className="text-xs">
+                            <Badge key={field.id} variant="secondary" className="text-xs bg-blue-50 text-blue-700">
                               {field.name}
                             </Badge>
                           ))}
@@ -415,14 +778,18 @@ export default function UsersList() {
 
                         {/* Education and Experience */}
                         <div className="space-y-2 text-sm text-gray-600">
-                          <div className="flex items-center gap-2">
-                            <GraduationCap className="w-4 h-4" />
-                            <span>{user.university} • {user.graduation_year}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Briefcase className="w-4 h-4" />
-                            <span>{user.experience_years} years experience</span>
-                          </div>
+                          {user.university && (
+                            <div className="flex items-center gap-2">
+                              <GraduationCap className="w-4 h-4" />
+                              <span>{user.university} {user.graduation_year && `• ${user.graduation_year}`}</span>
+                            </div>
+                          )}
+                          {user.experience_years && (
+                            <div className="flex items-center gap-2">
+                              <Briefcase className="w-4 h-4" />
+                              <span>{user.experience_years} years experience</span>
+                            </div>
+                          )}
                           {user.specialization && (
                             <div className="flex items-center gap-2">
                               <Calendar className="w-4 h-4" />

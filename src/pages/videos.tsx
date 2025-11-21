@@ -1,346 +1,635 @@
-import { useState, useRef, useEffect } from 'react';
+'use client';
+
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
-import FriendComponent from "@/components/feed/frindereaquest";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import api from "@/lib/api";
+import { 
+  Volume2, 
+  VolumeX, 
+  Heart, 
+  MessageCircle, 
+  Share2, 
+  MoreHorizontal,
+  Play,
+  Pause,
+  ChevronUp,
+  ChevronDown,
+  Users,
+  Send
+} from "lucide-react";
 
-const reels = [
-  {
-    id: 1,
-    video: "https://www.youtube.com/embed/fJSFus0pxZI",
-    thumbnail: "https://img.youtube.com/vi/fJSFus0pxZI/maxresdefault.jpg",
-    user: {
-      name: "Sarah Johnson",
-      avatar: "https://imgs.search.brave.com/BIXYCDPNpywnnCvcr1QFel6FCCB9dmjpYlZh8WNIHpY/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly8zcmFi/YXBwLmNvbS9hcHBz/dG9yZS93cC1jb250/ZW50L3VwbG9hZHMv/MjAyMC8wOS9jYXQ1/LTE1LmpwZw"
-    },
-    caption: "Exploring the city lights! 🌃",
-    likes: 1245,
-    comments: 67,
-    shares: 32
-  },
-  {
-    id: 2,
-    video: "https://youtu.be/gKB1Wc7tsW8?si=oOo0sl3IGjpxYNuv",
-    thumbnail: "https://assets.mixkit.co/videos/preview/mixkit-tree-with-yellow-flowers-1173-large.mp4",
-    user: {
-      name: "Nature Lover",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=687&q=80"
-    },
-    caption: "Spring is here! 🌸",
-    likes: 876,
-    comments: 43,
-    shares: 21
-  },
-  {
-    id: 3,
-    video: "https://youtu.be/gKB1Wc7tsW8?si=oOo0sl3IGjpxYNuv",
-    thumbnail: "https://assets.mixkit.co/videos/preview/mixkit-young-woman-talking-about-fashion-40906-large.mp4",
-    user: {
-      name: "Fashion Tips",
-      avatar: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
-    },
-    caption: "Summer fashion!",
-    likes: 2109,
-    comments: 128,
-    shares: 76
-  },
-  {
-    id: 4,
-    video: "https://youtu.be/B-x7eeYtFIA?si=VECh5KxHXH-Lfqmh",
-    thumbnail: "https://assets.mixkit.co/videos/preview/mixkit-hand-holding-a-smartphone-displaying-social-media-40659-large.mp4",
-    user: {
-      name: "Tech Reviews",
-      avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?ixlib=rb-4.0.3&auto=format&fit=crop&w=687&q=80"
-    },
-    caption: "New phone review! 📱",
-    likes: 3456,
-    comments: 231,
-    shares: 98
-  },
-];
+interface VideoPost {
+  id: number;
+  user: {
+    id: number;
+    user_name: string;
+    profile_image: string;
+    created_at: string;
+    updated_at: string;
+  };
+  content: string;
+  image?: string;
+  video: string;
+  gallery: any[];
+  comments: any[];
+  is_ad_request: boolean;
+  is_ad_approved: boolean | null;
+  ad_approved_at: string | null;
+  likes_count?: number;
+  has_liked?: boolean;
+}
 
-const ReelsPage = () => {
-  const [currentReelIndex, setCurrentReelIndex] = useState(0);
+interface Friend {
+  id: number;
+  user_name: string;
+  profile_image: string;
+}
+
+const VideoReelsPage = () => {
+  const [videoPosts, setVideoPosts] = useState<VideoPost[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [likedReels, setLikedReels] = useState({});
-  const [progress, setProgress] = useState(0);
-  const [isYouTube, setIsYouTube] = useState(false);
-  const videoRef = useRef(null);
-  const containerRef = useRef(null);
-  const isScrolling = useRef(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(true);
+  
+  // New states for comments and sharing
+  const [showComments, setShowComments] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [newComment, setNewComment] = useState("");
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [selectedFriends, setSelectedFriends] = useState<number[]>([]);
+  
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  // تحديد إذا كان الفيديو من YouTube
-  useEffect(() => {
-    setIsYouTube(reels[currentReelIndex].video.includes('youtube'));
-  }, [currentReelIndex]);
-
-  // تشغيل الفيديو عند تغيير المؤشر
-  useEffect(() => {
-    if (videoRef.current && !isYouTube) {
-      videoRef.current.currentTime = 0;
-      videoRef.current.muted = true;
-      videoRef.current.playsInline = true;
+  // Fetch video posts
+  const fetchVideoPosts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/posts/with-video");
       
-      const playPromise = videoRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.warn("تشغيل الفيديو فشل:", error);
-        });
+      if (res.data && res.data.data) {
+        console.log("🎥 Found video posts:", res.data.data.length);
+        const postsWithLikes = await Promise.all(
+          res.data.data.map(async (post: VideoPost) => {
+            try {
+              const likeRes = await api.get(`/posts/${post.id}/like-status`);
+              return {
+                ...post,
+                likes_count: likeRes.data?.likesCount || post.comments?.filter(c => c.reaction === 'like').length || 0,
+                has_liked: likeRes.data?.hasLiked || false
+              };
+            } catch (error) {
+              return {
+                ...post,
+                likes_count: post.comments?.filter(c => c.reaction === 'like').length || 0,
+                has_liked: false
+              };
+            }
+          })
+        );
+        setVideoPosts(postsWithLikes);
+        setHasMore(res.data.data.length > 0);
       }
-      
-      setIsPlaying(true);
-      setProgress(0);
+    } catch (err) {
+      console.error("❌ Error fetching video posts:", err);
+    } finally {
+      setLoading(false);
     }
-  }, [currentReelIndex, isYouTube]);
-
-  // التعامل مع التمرير بالسحب (لتجربة شبيهة بتيك توك)
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    let startY = 0;
-    let isSwiping = false;
-
-    const handleTouchStart = (e) => {
-      startY = e.touches[0].clientY;
-      isSwiping = true;
-    };
-
-    const handleTouchMove = (e) => {
-      if (!isSwiping) return;
-      
-      const currentY = e.touches[0].clientY;
-      const diffY = startY - currentY;
-
-      // إذا كانت الحركة كبيرة بما يكفي، انتقل إلى الفيديو التالي أو السابق
-      if (Math.abs(diffY) > 100) {
-        if (diffY > 0) {
-          // سحب لأعلى - الفيديو التالي
-          setCurrentReelIndex(prev => Math.min(prev + 1, reels.length - 1));
-        } else {
-          // سحب لأسفل - الفيديو السابق
-          setCurrentReelIndex(prev => Math.max(prev - 1, 0));
-        }
-        isSwiping = false;
-        isScrolling.current = true;
-        
-        // منع التمرير المتعدد
-        setTimeout(() => {
-          isScrolling.current = false;
-        }, 500);
-      }
-    };
-
-    const handleWheel = (e) => {
-      if (isScrolling.current) return;
-      
-      e.preventDefault();
-      if (e.deltaY > 50) {
-        // تمرير لأسفل - الفيديو التالي
-        setCurrentReelIndex(prev => Math.min(prev + 1, reels.length - 1));
-        isScrolling.current = true;
-        
-        setTimeout(() => {
-          isScrolling.current = false;
-        }, 500);
-      } else if (e.deltaY < -50) {
-        // تمرير لأعلى - الفيديو السابق
-        setCurrentReelIndex(prev => Math.max(prev - 1, 0));
-        isScrolling.current = true;
-        
-        setTimeout(() => {
-          isScrolling.current = false;
-        }, 500);
-      }
-    };
-
-    container.addEventListener('touchstart', handleTouchStart);
-    container.addEventListener('touchmove', handleTouchMove);
-    container.addEventListener('wheel', handleWheel, { passive: false });
-
-    return () => {
-      container.removeEventListener('touchstart', handleTouchStart);
-      container.removeEventListener('touchmove', handleTouchMove);
-      container.removeEventListener('wheel', handleWheel);
-    };
   }, []);
 
-  const togglePlay = () => {
-    if (!isYouTube && videoRef.current) {
-      if (videoRef.current.paused) {
-        videoRef.current.play();
-        setIsPlaying(true);
+  // Fetch friends list
+  const fetchFriends = async () => {
+    try {
+      const res = await api.get("/friends");
+      if (res.data && res.data.data) {
+        setFriends(res.data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching friends:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchVideoPosts();
+    fetchFriends();
+  }, [fetchVideoPosts]);
+
+  // Handle video play/pause
+  useEffect(() => {
+    const currentVideo = videoRefs.current[currentIndex];
+    if (currentVideo) {
+      if (isPlaying) {
+        currentVideo.play().catch(console.error);
       } else {
-        videoRef.current.pause();
-        setIsPlaying(false);
+        currentVideo.pause();
       }
     }
-    // للفيديوهات من YouTube، لا يمكن التحكم بها برمجيًا بسبب قيود الأمان
-  };
+  }, [currentIndex, isPlaying]);
 
-  const toggleLike = (reelId) => {
-    setLikedReels(prev => ({
-      ...prev,
-      [reelId]: !prev[reelId]
-    }));
-  };
+  // Auto-play when video is visible
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const video = entry.target as HTMLVideoElement;
+            video.play().catch(console.error);
+            setIsPlaying(true);
+          } else {
+            const video = entry.target as HTMLVideoElement;
+            video.pause();
+          }
+        });
+      },
+      { threshold: 0.7 }
+    );
 
-  const formatCount = (count) => {
-    if (count >= 1000000) {
-      return (count / 1000000).toFixed(1) + 'M';
-    } else if (count >= 1000) {
-      return (count / 1000).toFixed(1) + 'K';
+    videoRefs.current.forEach((video) => {
+      if (video) observer.observe(video);
+    });
+
+    return () => observer.disconnect();
+  }, [videoPosts]);
+
+  // Handle scroll for navigation
+  const handleWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault();
+    
+    if (e.deltaY > 0) {
+      // Scroll down - next video
+      setCurrentIndex(prev => Math.min(prev + 1, videoPosts.length - 1));
+    } else {
+      // Scroll up - previous video
+      setCurrentIndex(prev => Math.max(prev - 1, 0));
     }
-    return count;
+  }, [videoPosts.length]);
+
+  // Handle keyboard navigation
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      setCurrentIndex(prev => Math.min(prev + 1, videoPosts.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      setCurrentIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === ' ') {
+      e.preventDefault();
+      setIsPlaying(prev => !prev);
+    } else if (e.key === 'm') {
+      setIsMuted(prev => !prev);
+    }
+  }, [videoPosts.length]);
+
+  // Add event listeners
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener('wheel', handleWheel, { passive: false });
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      if (container) {
+        container.removeEventListener('wheel', handleWheel);
+      }
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleWheel, handleKeyDown]);
+
+  // Reset video when changing index
+  useEffect(() => {
+    videoRefs.current.forEach((video, index) => {
+      if (video && index !== currentIndex) {
+        video.currentTime = 0;
+        video.pause();
+      }
+    });
+  }, [currentIndex]);
+
+  const togglePlay = () => {
+    setIsPlaying(!isPlaying);
   };
+
+  const toggleMute = () => {
+    setIsMuted(!isMuted);
+  };
+
+  const nextVideo = () => {
+    setCurrentIndex(prev => Math.min(prev + 1, videoPosts.length - 1));
+  };
+
+  const prevVideo = () => {
+    setCurrentIndex(prev => Math.max(prev - 1, 0));
+  };
+
+  // Handle Like function
+  const handleLike = async (postId: number) => {
+    try {
+      const currentPost = videoPosts[currentIndex];
+      const newHasLiked = !currentPost.has_liked;
+      const newLikesCount = newHasLiked 
+        ? (currentPost.likes_count || 0) + 1 
+        : Math.max(0, (currentPost.likes_count || 0) - 1);
+
+      // Optimistic update
+      setVideoPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { ...post, has_liked: newHasLiked, likes_count: newLikesCount }
+          : post
+      ));
+
+      // API call
+      await api.post(`/posts/${postId}/like`);
+
+    } catch (error) {
+      console.error("Error liking post:", error);
+      // Revert optimistic update on error
+      setVideoPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { ...post, has_liked: !newHasLiked, likes_count: currentPost.likes_count }
+          : post
+      ));
+    }
+  };
+
+  // Handle Add Comment
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+
+    try {
+      setCommentLoading(true);
+      const currentPostId = videoPosts[currentIndex]?.id;
+
+      await api.post("/create-comment", {
+        post_id: currentPostId,
+        content: newComment,
+        reaction: null
+      });
+
+      setNewComment("");
+      // Refresh comments
+      const updatedPosts = await fetchVideoPosts();
+      
+    } catch (error) {
+      console.error("Error adding comment:", error);
+    } finally {
+      setCommentLoading(false);
+    }
+  };
+
+  // Handle Share with Friends
+  const handleShareWithFriends = async () => {
+    try {
+      const currentPostId = videoPosts[currentIndex]?.id;
+      
+      // Send friend requests to selected friends with the post
+      await Promise.all(
+        selectedFriends.map(friendId => 
+          api.post(`/friend-requests/${friendId}`, {
+            post_id: currentPostId
+          })
+        )
+      );
+
+      setShowShareDialog(false);
+      setSelectedFriends([]);
+      alert("Post shared successfully with selected friends!");
+      
+    } catch (error) {
+      console.error("Error sharing post:", error);
+      alert("Error sharing post. Please try again.");
+    }
+  };
+
+  const toggleFriendSelection = (friendId: number) => {
+    setSelectedFriends(prev => 
+      prev.includes(friendId)
+        ? prev.filter(id => id !== friendId)
+        : [...prev, friendId]
+    );
+  };
+
+  const currentPost = videoPosts[currentIndex];
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-screen bg-black">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  if (videoPosts.length === 0) {
+    return (
+      <MainLayout>
+        <div className="flex items-center justify-center h-screen bg-black text-white">
+          <div className="text-center">
+            <div className="text-6xl mb-4">🎥</div>
+            <h2 className="text-2xl font-bold mb-2">No videos found</h2>
+            <p className="text-gray-400">There are no video posts available.</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
-      <div className="h-screen m-6 w-50 rounded-sm flex overflow-hidden bg-black">
-        <div ref={containerRef} className="flex-1  rounded-sm relative overflow-hidden">
-          {/* فيديو الـ Reel الحالي */}
-          <div className="h-full w-full flex items-center  rounded-sm justify-center">
-            {isYouTube ? (
-              <iframe
-                src={`${reels[currentReelIndex].video}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0`}
-                className="h-full w-full object-cover"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                title="YouTube video"
-              />
-            ) : (
+      <div 
+        ref={containerRef}
+        className="relative h-screen bg-black overflow-hidden"
+      >
+        {/* Main Video Container */}
+        <div className="relative h-full flex items-center justify-center">
+          {videoPosts.map((post, index) => (
+            <div
+              key={post.id}
+              className={`absolute inset-0 w-full h-full transition-opacity duration-500 ${
+                index === currentIndex ? 'opacity-100' : 'opacity-0 pointer-events-none'
+              }`}
+            >
+              {/* Video Player */}
               <video
-                ref={videoRef}
-                src={reels[currentReelIndex].video}
-                className="h-full w-full object-cover"
-                muted
-                autoPlay
+                ref={el => videoRefs.current[index] = el}
+                src={post.video}
+                muted={isMuted}
                 loop
                 playsInline
+                className="w-full h-full object-cover"
                 onClick={togglePlay}
               />
-            )}
-            
-            {/* شريط التقدم (لا يعمل مع YouTube) */}
-            {!isYouTube && (
-              <div className="absolute top-0 left-0 right-0 h-1 bg-gray-600 z-10">
-                <div 
-                  className="h-full bg-red-600 transition-all duration-100"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-            )}
 
-            {/* معلومات المستخدم والتسمية */}
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/70 to-transparent p-4 pb-20">
-              <div className="flex items-center gap-3 mb-2">
-                <img
-                  src={reels[currentReelIndex].user.avatar}
-                  className="w-10 h-10 rounded-full border-2 border-white"
-                  alt={reels[currentReelIndex].user.name}
-                />
-                <span className="text-white font-semibold">{reels[currentReelIndex].user.name}</span>
-                <button className="ml-2 px-3 py-1 bg-white/20 text-white text-xs rounded-full">
-                  متابعة
-                </button>
-              </div>
-              <p className="text-white text-sm mb-2">{reels[currentReelIndex].caption}</p>
-              
-              <div className="flex items-center space-x-3">
-                <div className="flex items-center">
-                  <svg className="w-4 h-4 text-white mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="text-white text-xs">أصوات</span>
-                </div>
+              {/* Video Overlay Controls */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20">
                 
-                <div className="flex items-center">
-                  <svg className="w-4 h-4 text-white mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  <span className="text-white text-xs">موسيقى الأصلية</span>
+                {/* Top Bar - Hidden as requested */}
+               
+                {/* Bottom Content */}
+                <div className="absolute bottom-0 left-0 right-0 p-6">
+                  <div className="flex justify-between items-end">
+                    
+                    {/* Post Info - Left Side */}
+                    <div className="flex-1 max-w-2xl">
+                      {/* User Info */}
+                      <div className="flex items-center gap-3 mb-4">
+                        <img
+                          src={post.user.profile_image}
+                          alt={post.user.user_name}
+                          className="w-10 h-10 rounded-full border-2 border-white"
+                        />
+                        <span className="text-white font-semibold">
+                          {post.user.user_name}
+                        </span>
+                      </div>
+
+                      {/* Post Content */}
+                      <p className="text-white text-sm mb-4 line-clamp-2">
+                        {post.content}
+                      </p>
+
+                      {/* Music/Sound */}
+                      <div className="flex items-center gap-2 text-white text-sm">
+                        <div className="w-4 h-4 bg-white rounded-full"></div>
+                        <span>Original Sound</span>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons - Right Side */}
+                    <div className="flex flex-col items-center gap-6 ml-4">
+                      
+                      {/* Like Button */}
+                      <div className="flex flex-col items-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={`w-12 h-12 rounded-full hover:bg-white/30 ${
+                            post.has_liked 
+                              ? 'bg-red-500/20 text-red-500' 
+                              : 'bg-white/20 text-white'
+                          }`}
+                          onClick={() => handleLike(post.id)}
+                        >
+                          <Heart className={`w-6 h-6 ${post.has_liked ? 'fill-current' : ''}`} />
+                        </Button>
+                        <span className="text-white text-xs mt-1">
+                          {post.likes_count || 0}
+                        </span>
+                      </div>
+
+                      {/* Comment Button */}
+                      <div className="flex flex-col items-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="w-12 h-12 bg-white/20 rounded-full hover:bg-white/30 text-white"
+                          onClick={() => setShowComments(true)}
+                        >
+                          <MessageCircle className="w-6 h-6" />
+                        </Button>
+                        <span className="text-white text-xs mt-1">
+                          {post.comments?.filter(c => !c.reaction).length || 0}
+                        </span>
+                      </div>
+
+                      {/* Share Button */}
+                      <div className="flex flex-col items-center">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="w-12 h-12 bg-white/20 rounded-full hover:bg-white/30 text-white"
+                          onClick={() => setShowShareDialog(true)}
+                        >
+                          <Share2 className="w-6 h-6" />
+                        </Button>
+                        <span className="text-white text-xs mt-1">Share</span>
+                      </div>
+
+                      {/* User Avatar */}
+                      <div className="mt-4">
+                        <img
+                          src={post.user.profile_image}
+                          alt={post.user.user_name}
+                          className="w-12 h-12 rounded-full border-2 border-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Play/Pause Center Button */}
+                {!isPlaying && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="w-20 h-20 bg-black/50 rounded-full hover:bg-black/70"
+                      onClick={togglePlay}
+                    >
+                      <Play className="w-10 h-10 text-white fill-white" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Navigation Arrows */}
+                {currentIndex > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-1/2 left-4 transform -translate-y-1/2 w-12 h-12 bg-black/50 rounded-full hover:bg-black/70"
+                    onClick={prevVideo}
+                  >
+                    <ChevronUp className="w-8 h-8 text-white" />
+                  </Button>
+                )}
+
+                {currentIndex < videoPosts.length - 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-1/2 right-4 transform -translate-y-1/2 w-12 h-12 bg-black/50 rounded-full hover:bg-black/70"
+                    onClick={nextVideo}
+                  >
+                    <ChevronDown className="w-8 h-8 text-white" />
+                  </Button>
+                )}
+
+                {/* Progress Indicator */}
+                <div className="absolute top-4 left-4 right-4 flex gap-1">
+                  {videoPosts.map((_, idx) => (
+                    <div
+                      key={idx}
+                      className={`flex-1 h-1 rounded-full transition-all duration-300 ${
+                        idx === currentIndex 
+                          ? 'bg-white' 
+                          : idx < currentIndex 
+                            ? 'bg-white' 
+                            : 'bg-white/30'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                {/* Mute Button - Moved to bottom left */}
+                <div className="absolute bottom-24 left-4">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="w-10 h-10 bg-black/50 rounded-full hover:bg-black/70 text-white"
+                    onClick={toggleMute}
+                  >
+                    {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                  </Button>
                 </div>
               </div>
             </div>
-
-            {/* الأزرار الجانبية (إعجاب، تعليق، مشاركة) */}
-            <div className="absolute right-4 bottom-24 flex flex-col items-center space-y-6 text-white">
-              <div className="text-center">
-                <button 
-                  className="bg-white/10 p-2 rounded-full flex items-center justify-center w-12 h-12"
-                  onClick={() => toggleLike(reels[currentReelIndex].id)}
-                >
-                  {likedReels[reels[currentReelIndex].id] ? (
-                    <svg className="w-7 h-7 text-red-500" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                  )}
-                </button>
-                <p className="text-xs mt-1 font-semibold">
-                  {formatCount(likedReels[reels[currentReelIndex].id] ? reels[currentReelIndex].likes + 1 : reels[currentReelIndex].likes)}
-                </p>
-              </div>
-              
-              <div className="text-center">
-                <button className="bg-white/10 p-2 rounded-full flex items-center justify-center w-12 h-12">
-                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                </button>
-                <p className="text-xs mt-1 font-semibold">{formatCount(reels[currentReelIndex].comments)}</p>
-              </div>
-              
-              <div className="text-center">
-                <button className="bg-white/10 p-2 rounded-full flex items-center justify-center w-12 h-12">
-                  <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                  </svg>
-                </button>
-                <p className="text-xs mt-1 font-semibold">{formatCount(reels[currentReelIndex].shares)}</p>
-              </div>
-              
-              <div className="text-center">
-                <button className="bg-white/10 p-2 rounded-full flex items-center justify-center w-12 h-12">
-                  <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                  </svg>
-                </button>
-              </div>
-              
-              {!isYouTube && (
-                <button
-                  className="bg-white/10 p-2 rounded-full flex items-center justify-center w-12 h-12"
-                  onClick={togglePlay}
-                >
-                  {isPlaying ? (
-                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  ) : (
-                    <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                </button>
-              )}
-            </div>
-
-            {/* مؤشر السحب */}
-            <div className="absolute bottom-4 left-0 right-0 flex justify-center">
-              <div className="w-40 h-1 bg-white/30 rounded-full"></div>
-            </div>
-          </div>
+          ))}
         </div>
-        
-        {/* الشريط الجانبي للأصدقاء */}
-        
+
+        {/* Comments Dialog */}
+        <Dialog open={showComments} onOpenChange={setShowComments}>
+          <DialogContent className="max-w-md bg-gray-900 text-white border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white">Comments</DialogTitle>
+            </DialogHeader>
+            <div className="max-h-96 overflow-y-auto space-y-4">
+              {currentPost?.comments?.filter(comment => !comment.reaction).map(comment => (
+                <div key={comment.id} className="flex gap-3">
+                  <img
+                    src={comment.user.profile_image}
+                    alt={comment.user.user_name}
+                    className="w-8 h-8 rounded-full"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm">{comment.user.user_name}</span>
+                      <span className="text-gray-400 text-xs">{comment.created_at}</span>
+                    </div>
+                    <p className="text-sm text-white">{comment.content}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Input
+                placeholder="Add a comment..."
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleAddComment()}
+                className="flex-1 bg-gray-800 border-gray-700 text-white"
+              />
+              <Button 
+                onClick={handleAddComment} 
+                disabled={commentLoading || !newComment.trim()}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Share Dialog */}
+        <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+          <DialogContent className="max-w-md bg-gray-900 text-white border-gray-700">
+            <DialogHeader>
+              <DialogTitle className="text-white flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Share with Friends
+              </DialogTitle>
+            </DialogHeader>
+            <div className="max-h-96 overflow-y-auto space-y-2">
+              {friends.map(friend => (
+                <div
+                  key={friend.id}
+                  className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
+                    selectedFriends.includes(friend.id)
+                      ? 'bg-blue-600/20 border border-blue-500'
+                      : 'bg-gray-800 hover:bg-gray-700'
+                  }`}
+                  onClick={() => toggleFriendSelection(friend.id)}
+                >
+                  <img
+                    src={friend.profile_image}
+                    alt={friend.user_name}
+                    className="w-10 h-10 rounded-full"
+                  />
+                  <span className="flex-1 font-medium">{friend.user_name}</span>
+                  {selectedFriends.includes(friend.id) && (
+                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                      <div className="w-2 h-2 bg-white rounded-full" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowShareDialog(false)}
+                className="flex-1 border-gray-600 text-white hover:bg-gray-700"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleShareWithFriends}
+                disabled={selectedFriends.length === 0}
+                className="flex-1 bg-blue-600 hover:bg-blue-700"
+              >
+                Share with {selectedFriends.length} friend(s)
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
 };
 
-export default ReelsPage;
+export default VideoReelsPage;
