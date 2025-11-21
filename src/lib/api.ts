@@ -3,16 +3,30 @@ import axios, { AxiosError } from "axios";
 import Cookies from "js-cookie";
 
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000/api", // backend URL
+  baseURL: "https://back.dentin.cloud/api", // backend URL
   headers: { "Content-Type": "application/json" },
+  withCredentials: true, // مهم جداً عشان Laravel يقرأ الـ cookies
 });
 
+// 🟢 قبل أي POST/PUT/DELETE: نجيب CSRF cookie
+export const getCsrfToken = async () => {
+  await axios.get("https://back.dentin.cloud/sanctum/csrf-cookie", {
+    withCredentials: true,
+  });
+};
+
 // إضافة التوكن في كل request
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
+  // لو الطلب POST/PUT/DELETE، ناخد CSRF Cookie أول
+  if (["post", "put", "delete"].includes(config.method || "")) {
+    await getCsrfToken();
+  }
+
   const token = Cookies.get("token");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 
