@@ -8,7 +8,6 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
-    // 🔽 إضافة إعدادات الـ Proxy هنا
     proxy: {
       '/api': {
         target: 'https://back.dentin.cloud',
@@ -22,6 +21,12 @@ export default defineConfig(({ mode }) => ({
         secure: false
       }
     }
+  },
+  // 🔽 إضافة preview configuration
+  preview: {
+    host: "::",
+    port: 8080,
+    allowedHosts: ['dentin.cloud'] // 🔽 إضافة النطاق المسموح به
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
