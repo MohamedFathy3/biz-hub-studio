@@ -7,26 +7,45 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 7000, 
     proxy: {
-      '/api': {
-        target: 'https://back.dentin.cloud',
+      "/api": {
+        target: "https://back.dentin.cloud",
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api/, '/api')
+        rewrite: (path) => path.replace(/^\/api/, "/api"),
+        configure: (proxy, _options) => {
+          proxy.on("error", (err, _req, _res) => {
+            console.log("proxy error", err);
+          });
+          proxy.on("proxyReq", (proxyReq, req, _res) => {
+            console.log("Sending Request to the Target:", req.method, req.url);
+            // إضافة headers إضافية إذا لزم الأمر
+            proxyReq.setHeader('X-Requested-With', 'XMLHttpRequest');
+          });
+          proxy.on("proxyRes", (proxyRes, req, _res) => {
+            console.log("Received Response from the Target:", proxyRes.statusCode, req.url);
+            console.log("Response Headers:", proxyRes.headers);
+          });
+        },
       },
-      '/sanctum': {
-        target: 'https://back.dentin.cloud',
+      "/sanctum": {
+        target: "https://back.dentin.cloud",
         changeOrigin: true,
-        secure: false
-      }
-    }
-  },
-  // 🔽 إضافة preview configuration
-  preview: {
-    host: "::",
-    port: 8080,
-    allowedHosts: ['dentin.cloud'] // 🔽 إضافة النطاق المسموح به
+        secure: false,
+        configure: (proxy, _options) => {
+          proxy.on("error", (err, _req, _res) => {
+            console.log("sanctum proxy error", err);
+          });
+          proxy.on("proxyReq", (proxyReq, req, _res) => {
+            console.log("Sending Sanctum Request:", req.method, req.url);
+          });
+          proxy.on("proxyRes", (proxyRes, req, _res) => {
+            console.log("Sanctum Response Headers:", proxyRes.headers);
+          });
+        },
+      },
+    },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
