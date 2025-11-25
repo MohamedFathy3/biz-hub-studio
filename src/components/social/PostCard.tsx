@@ -578,14 +578,7 @@ export const PostCard = ({
               Comment
             </Button>
 
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-            >
-              <Share2 className="w-4 h-4" />
-              Share
-            </Button>
+           
           </div>
 
           {/* Comments Section - Facebook Style */}

@@ -212,25 +212,45 @@ export default function EditProfile() {
         });
     };
 
+    // 🔥 FIXED: تحسين دالة رفع الصور المفردة
     const handleSingleImageUpload = (fieldName: string, imageId: number) => {
         console.log(`✅ Uploaded ${fieldName} with ID:`, imageId);
         setForm(prev => ({ 
             ...prev, 
             [fieldName]: imageId 
         }));
+        
+        // إظهار رسالة نجاح
+        setTimeout(() => {
+            const successMessages: Record<string, string> = {
+                profile_image: "✅ Profile image uploaded successfully",
+                cover_image: "✅ Cover image uploaded successfully", 
+                graduation_certificate_image: "✅ Graduation certificate uploaded successfully",
+                cv: "✅ CV uploaded successfully"
+            };
+            
+            if (successMessages[fieldName]) {
+                console.log(successMessages[fieldName]);
+            }
+        }, 100);
     };
 
-    // Handle multiple course certificates upload
+    // 🔥 FIXED: تحسين دالة رفع شهادات الكورسات المتعددة
     const handleCourseCertificateUpload = (imageId: number) => {
         console.log(`✅ Uploaded course certificate with ID:`, imageId);
         setForm(prev => ({
             ...prev,
             course_certificates_image: [...prev.course_certificates_image, imageId]
         }));
+        
+        setTimeout(() => {
+            console.log("✅ Course certificate added successfully");
+        }, 100);
     };
 
     // Remove course certificate
     const removeCourseCertificate = (index: number) => {
+        console.log(`🗑️ Removing course certificate at index: ${index}`);
         setForm(prev => ({
             ...prev,
             course_certificates_image: prev.course_certificates_image.filter((_, i) => i !== index)
@@ -286,24 +306,25 @@ export default function EditProfile() {
         }));
     };
 
-  const addTool = () => {
-  if (newTool.trim() !== "") {
-    console.log(`🛠️ Adding tool: ${newTool}`);
-    const updatedTools = [...tools, newTool.trim()];
-    setTools(updatedTools);
-    setNewTool("");
-  }
-};
+    const addTool = () => {
+        if (newTool.trim() !== "") {
+            console.log(`🛠️ Adding tool: ${newTool}`);
+            const updatedTools = [...tools, newTool.trim()];
+            setTools(updatedTools);
+            setForm(prev => ({ ...prev, tools: JSON.stringify(updatedTools) }));
+            setNewTool("");
+        }
+    };
 
-const addSkill = () => {
-  if (newSkill.trim() !== "") {
-    console.log(`💪 Adding skill: ${newSkill}`);
-    const updatedSkills = [...skills, newSkill.trim()];
-    setSkills(updatedSkills);
-    setNewSkill("");
-  }
-};
-
+    const addSkill = () => {
+        if (newSkill.trim() !== "") {
+            console.log(`💪 Adding skill: ${newSkill}`);
+            const updatedSkills = [...skills, newSkill.trim()];
+            setSkills(updatedSkills);
+            setForm(prev => ({ ...prev, skills: JSON.stringify(updatedSkills) }));
+            setNewSkill("");
+        }
+    };
 
     const removeTool = (index: number) => {
         console.log(`🗑️ Removing tool at index: ${index}`);
@@ -349,7 +370,7 @@ const addSkill = () => {
                 if (!form.where_did_you_work || form.where_did_you_work.trim() === '') newErrors.where_did_you_work = "Work history is required";
                 if (!form.address || form.address.trim() === '') newErrors.address = "Address is required";
                 if (skills.length === 0) newErrors.skills = "Please add at least one skill";
-                if (tools.length === 0) newErrors.tools = "Please add at least one tool";
+                // if (tools.length === 0) newErrors.tools = "Please add at least one tool";
                 
                 // إذا كان مساعد جامعي، يجب تعبئة الجامعة
                 if (form.is_work_assistant_university && !form.assistant_university) {
@@ -366,6 +387,7 @@ const addSkill = () => {
             case 4:
                 // Optional in edit mode
                 break;
+                
         }
         
         console.log(`❌ Validation errors for step ${step}:`, newErrors);
@@ -373,90 +395,115 @@ const addSkill = () => {
         return Object.keys(newErrors).length === 0;
     };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  console.log("🎯 SUBMIT BUTTON CLICKED");
-  console.log("📋 FINAL FORM DATA:", form);
-  
-  if (!validateStep(currentStep)) {
-    console.log("❌ Validation failed, stopping submission");
-    return;
-  }
-  
-  setSaving(true);
-  
-  try {
-    // 🔥 FIX: تحقق من توقعات الـ API بناءً على البيانات الموجودة
-    const submitData: any = {
-      email: form.email,
-      user_name: form.user_name,
-      first_name: form.first_name,
-      last_name: form.last_name,
-      phone: form.phone,
-      birth_date: form.birth_date,
-      graduation_year: form.graduation_year,
-      university: form.university,
-      graduation_grade: form.graduation_grade,
-      postgraduate_degree: form.postgraduate_degree,
-      specialization: form.specialization || '',
-      experience_years: form.experience_years,
-      description: form.description || '',
-      where_did_you_work: form.where_did_you_work || '',
-      address: form.address || '',
-      assistant_university: form.assistant_university || '',
-      is_work_assistant_university: form.is_work_assistant_university ? 1 : 0,
-      has_clinic: form.has_clinic ? 1 : 0,
-      clinic_name: form.clinic_name || '',
-      clinic_address: form.clinic_address || '',
-      profile_image: form.profile_image,
-      cover_image: form.cover_image,
-      cv: form.cv,
-      graduation_certificate_image: form.graduation_certificate_image,
-      fields: form.fields,
-      course_certificates_image: form.course_certificates_image,
-    };
+    // 🔥 FIXED: تحسين دالة الإرسال النهائية
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        console.log("🎯 SUBMIT BUTTON CLICKED");
+        console.log("📋 FINAL FORM DATA:", form);
+        
+        if (!validateStep(currentStep)) {
+            console.log("❌ Validation failed, stopping submission");
+            return;
+        }
+        
+        setSaving(true);
+        
+        try {
+            // 🔥 بناء البيانات النهائية للإرسال
+            const submitData: any = {
+                email: form.email,
+                user_name: form.user_name,
+                first_name: form.first_name,
+                last_name: form.last_name,
+                phone: form.phone,
+                birth_date: form.birth_date,
+                graduation_year: form.graduation_year,
+                university: form.university,
+                graduation_grade: form.graduation_grade,
+                postgraduate_degree: form.postgraduate_degree,
+                specialization: form.specialization || '',
+                experience_years: form.experience_years,
+                description: form.description || '',
+                where_did_you_work: form.where_did_you_work || '',
+                address: form.address || '',
+                assistant_university: form.assistant_university || '',
+                is_work_assistant_university: form.is_work_assistant_university ? 1 : 0,
+                has_clinic: form.has_clinic ? 1 : 0,
+                clinic_name: form.clinic_name || '',
+                clinic_address: form.clinic_address || '',
+                active: 1,
+                fields: form.fields,
+            };
 
-    // 🔥 بناءً على البيانات الموجودة، الـ API بيتوقع:
-    // - tools: string (JSON string)
-    // - skills: array  
-    // - available_times: string (JSON string)
+            // - available_times: string (JSON string)
     submitData.tools = JSON.stringify(tools); // 🔥 حول لـ JSON string
     submitData.skills = skills; // 🔥 أرسل array مباشرة
-    submitData.available_times = JSON.stringify(availableTimes); // 🔥 حول لـ JSON string
+    submitData.available_times = JSON.stringify(availableTimes);
 
-    // Only add password if it's provided
-    if (form.password) {
-      submitData.password = form.password;
-    }
+            // 🔥 FIXED: معالجة الصور - إرسال فقط إذا كانت موجودة
+            if (form.profile_image) submitData.profile_image = form.profile_image;
+            if (form.cover_image) submitData.cover_image = form.cover_image;
+            if (form.cv) submitData.cv = form.cv;
+            if (form.graduation_certificate_image) submitData.graduation_certificate_image = form.graduation_certificate_image;
+            if (form.course_certificates_image.length > 0) submitData.course_certificates_image = form.course_certificates_image;
 
-    console.log("🔍 Checking specific fields before submit:");
-    console.log("tools (stringified):", JSON.stringify(tools));
-    console.log("skills (array):", skills);
-    console.log("available_times (stringified):", JSON.stringify(availableTimes));
-    console.log("fields array:", form.fields);
-    console.log("course_certificates_image:", form.course_certificates_image);
+            // Only add password if it's provided
+            if (form.password) {
+                submitData.password = form.password;
+            }
 
-    console.log("🚀 FINAL DATA TO SEND:", submitData);
+            console.log("🔍 FINAL DATA TO SEND:", submitData);
+            console.log("📊 Data breakdown:");
+            console.log("- Tools (stringified):", submitData.tools);
+            console.log("- Skills (stringified):", submitData.skills);
+            console.log("- Available times (stringified):", submitData.available_times);
+            console.log("- Fields:", submitData.fields);
+            console.log("- Profile image:", submitData.profile_image);
+            console.log("- Course certificates:", submitData.course_certificates_image);
 
-    const userId = id || currentUser?.id;
-    const response = await api.put(`/user/${userId}`, submitData);
-    
-    console.log("✅ Update successful:", response.data);
-    alert("🎉 Profile updated successfully!");
-    navigate(-1);
-    
-  } catch (err: any) {
-    console.error("❌ Update failed:", err);
-    const errorMessage = err.response?.data?.message || 
-                        err.response?.data?.error || 
-                        err.message ||
-                        "Something went wrong";
-    alert(`Update error: ${errorMessage}`);
-  } finally {
-    setSaving(false);
-  }
-};
+            const userId = id || currentUser?.id;
+            console.log(`🚀 Sending PUT request to /user/${userId}`);
+            
+            const response = await api.put(`/user/${userId}`, submitData);
+            
+            console.log("✅ Update successful:", response.data);
+            
+            alert("🎉 Profile updated successfully!");
+setTimeout(() => navigate(`/profile`), 100);
+
+
+            navigate(-2);
+            window.location.reload();
+
+            
+        } catch (err: any) {
+            console.error("❌ Update failed:", err);
+            
+            // 🔥 FIXED: تحسين عرض رسائل الخطأ
+            let errorMessage = "Something went wrong";
+            
+            if (err.response?.data) {
+                console.error("📛 Server response:", err.response.data);
+                
+                if (err.response.data.errors) {
+                    // Laravel validation errors
+                    const validationErrors = err.response.data.errors;
+                    errorMessage = Object.values(validationErrors).flat().join(', ');
+                } else if (err.response.data.message) {
+                    errorMessage = err.response.data.message;
+                } else if (err.response.data.error) {
+                    errorMessage = err.response.data.error;
+                }
+            } else if (err.message) {
+                errorMessage = err.message;
+            }
+            
+            alert(`Update error: ${errorMessage}`);
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const nextStep = () => {
         console.log(`➡️ Moving from step ${currentStep} to ${currentStep + 1}`);
@@ -732,15 +779,27 @@ const handleSubmit = async (e: React.FormEvent) => {
                                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                                 {field.label} <span className="text-red-500">*</span>
                                             </label>
-                                            <input
-                                                type={field.type}
-                                                name={field.name}
-                                                value={(form as any)[field.name]}
-                                                onChange={handleChange}
-                                                className={`w-full bg-gray-50 border ${errors[field.name] ? 'border-red-300' : 'border-gray-300'} p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039fb3] focus:border-[#039fb3] text-gray-800 placeholder-gray-400 transition-all`}
-                                                placeholder={`Enter your ${field.label.toLowerCase()}`}
-                                                required
-                                            />
+                                            {field.name === 'description' || field.name === 'where_did_you_work' ? (
+                                                <textarea
+                                                    name={field.name}
+                                                    value={(form as any)[field.name]}
+                                                    onChange={handleChange}
+                                                    rows={4}
+                                                    className={`w-full bg-gray-50 border ${errors[field.name] ? 'border-red-300' : 'border-gray-300'} p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039fb3] focus:border-[#039fb3] text-gray-800 placeholder-gray-400 transition-all`}
+                                                    placeholder={`Enter your ${field.label.toLowerCase()}`}
+                                                    required
+                                                />
+                                            ) : (
+                                                <input
+                                                    type={field.type}
+                                                    name={field.name}
+                                                    value={(form as any)[field.name]}
+                                                    onChange={handleChange}
+                                                    className={`w-full bg-gray-50 border ${errors[field.name] ? 'border-red-300' : 'border-gray-300'} p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039fb3] focus:border-[#039fb3] text-gray-800 placeholder-gray-400 transition-all`}
+                                                    placeholder={`Enter your ${field.label.toLowerCase()}`}
+                                                    required
+                                                />
+                                            )}
                                             {errors[field.name] && (
                                                 <p className="text-red-500 text-sm mt-1">{errors[field.name]}</p>
                                             )}
@@ -944,7 +1003,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                                     {/* Tools Section */}
                                     <div className="md:col-span-2 group">
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
-                                            Tools You Have <span className="text-red-500">*</span>
+                                            Tools You Have
                                         </label>
                                         {errors.tools && (
                                             <p className="text-red-500 text-sm mb-2">{errors.tools}</p>
@@ -1146,7 +1205,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                                 </Button>
                             )}
                             
-                            {currentStep < 4 ? (
+                            {currentStep < 5 ? (
                                 <Button
                                     type="button"
                                     onClick={nextStep}

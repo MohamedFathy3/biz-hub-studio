@@ -16,8 +16,7 @@ const LayoutContent = ({ children }: MainLayoutProps) => {
   const { isCollapsed } = useSidebar();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* 🔥 السايدبار يظهر في الديسكتوب فقط */}
+    <div className="min-h-screen bg-background -mt-20">
       <div className="hidden lg:block">
         <Sidebar />
       </div>
@@ -26,7 +25,7 @@ const LayoutContent = ({ children }: MainLayoutProps) => {
       
       <main className={cn(
         "pt-16 transition-all duration-300",
-        isCollapsed ? "lg:ml-20" : "lg:ml-64" // 🔥 margin فقط في الديسكتوب
+        isCollapsed ? "lg:ml-20" : "lg:ml-64"
       )}>
         <div className="p-4 md:p-6">
           {children}

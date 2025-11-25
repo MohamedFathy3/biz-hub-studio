@@ -49,7 +49,7 @@ const App = () => (
             <Route path="/RentDetail/:id" element={<PrivateRoute element={<RentDetail />} />} />
             <Route path="/jobs" element={<PrivateRoute element={<Jobs />} />} />
             <Route path="/Alljobs" element={<PrivateRoute element={<Authjobs />} />} />
-            <Route path="/jobsDetiles/:id" element={<PrivateRoute element={<AuthjobsDetiles />} />} />
+            <Route path="/job-applicants/:jobId" element={<PrivateRoute element={<AuthjobsDetiles />} />} />
             <Route path="/jobs/:id" element={<PrivateRoute element={<JobDetail />} />} />
 
             <Route path="/PendingRequests" element={<PrivateRoute element={<Panding_frendes />} />} />

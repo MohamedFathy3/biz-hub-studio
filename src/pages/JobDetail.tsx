@@ -81,8 +81,8 @@ const JobDetail = () => {
   if (loading) {
     return (
       <MainLayout>
-        <div className="p-6 flex justify-center items-center min-h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <div className="p-4 sm:p-6 flex justify-center items-center min-h-96">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#039fb3]"></div>
         </div>
       </MainLayout>
     );
@@ -91,10 +91,10 @@ const JobDetail = () => {
   if (!job) {
     return (
       <MainLayout>
-        <div className="p-6 text-center">
-          <h1 className="text-2xl font-bold mb-4">Job Not Found</h1>
+        <div className="p-4 sm:p-6 text-center">
+          <h1 className="text-xl sm:text-2xl font-bold mb-4">Job Not Found</h1>
           <Link to="/jobs">
-            <Button>
+            <Button className="bg-[#039fb3] hover:bg-[#0288a1]">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Jobs
             </Button>
@@ -110,11 +110,11 @@ const JobDetail = () => {
 
   return (
     <MainLayout>
-      <div className="p-6">
+      <div className="min-h-screen bg-gray-50 p-4 sm:p-6">
         {/* Back Button */}
-        <div className="mb-6">
+        <div className="mb-4 sm:mb-6">
           <Link to="/jobs">
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="text-gray-600 hover:text-gray-900">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Jobs
             </Button>
@@ -122,155 +122,147 @@ const JobDetail = () => {
         </div>
 
         {applySuccess && (
-          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
-            <CheckCircle className="w-5 h-5 text-green-600" />
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-green-50 border border-green-200 rounded-lg flex items-center gap-3">
+            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
             <div>
-              <p className="font-medium text-green-800">Application Submitted!</p>
-              <p className="text-sm text-green-600">Your application has been sent successfully.</p>
+              <p className="font-medium text-green-800 text-sm sm:text-base">Application Submitted!</p>
+              <p className="text-xs sm:text-sm text-green-600">Your application has been sent successfully.</p>
             </div>
           </div>
         )}
 
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
           {/* Main Content */}
-          <div className="col-span-8">
-            <Card>
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
-                      {job.company?.logo ? (
+          <div className="lg:col-span-8">
+            <Card className="border-gray-200">
+              <CardContent className="p-4 sm:p-6">
+                {/* Header Section */}
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
+                  <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+                    <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-gray-100 border border-gray-200 mx-auto sm:mx-0">
+                      {job.company?.logo || job.image_full_url ? (
                         <img
-                          src={job.company.logo}
+                          src={job.company?.logo || job.image_full_url}
                           alt={job.company?.name}
                           className="w-full h-full object-cover"
                         />
                       ) : (
                         <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                          <Building2 className="w-8 h-8 text-gray-400" />
+                          <Building2 className="w-5 h-5 sm:w-8 sm:h-8 text-gray-400" />
                         </div>
                       )}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <h1 className="text-2xl font-bold">{job.title}</h1>
+                    <div className="flex-1 text-center sm:text-left">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{job.title}</h1>
                         {job.available && (
-                          <Badge className="bg-green-100 text-green-800 border-green-200">Available</Badge>
+                          <Badge className="bg-green-100 text-green-800 border-green-200 text-xs sm:text-sm whitespace-nowrap mx-auto sm:mx-0">
+                            Available
+                          </Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Building2 className="w-4 h-4" />
-                          {job.company?.name || job.clinck}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-gray-600 text-sm">
+                        <div className="flex items-center gap-1 justify-center sm:justify-start">
+                          <Building2 className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{job.company?.name || job.clinck || "Unknown Company"}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
-                          {job.location}
+                        <div className="flex items-center gap-1 justify-center sm:justify-start">
+                          <MapPin className="w-4 h-4 flex-shrink-0" />
+                          <span className="truncate">{job.location}</span>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="w-4 h-4" />
-                          {job.created_at ? new Date(job.created_at).toLocaleDateString() : "Recently"}
+                        <div className="flex items-center gap-1 justify-center sm:justify-start">
+                          <Clock className="w-4 h-4 flex-shrink-0" />
+                          <span>{job.created_at ? new Date(job.created_at).toLocaleDateString() : "Recently"}</span>
                         </div>
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Heart className="w-4 h-4 mr-2" />
-                      Save
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Share
-                    </Button>
-                  </div>
+                 
                 </div>
-              </CardHeader>
-              
-              <CardContent className="space-y-6">
+                
                 {/* Quick Info */}
-                <div className="grid grid-cols-4 gap-4">
-                  <div className="text-center p-4 bg-secondary rounded-lg">
-                    <DollarSign className="w-6 h-6 mx-auto mb-2 text-green-600" />
-                    <div className="font-semibold">${job.salary}</div>
-                    <div className="text-sm text-muted-foreground">Salary</div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-6">
+                  <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <DollarSign className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-green-600" />
+                    <div className="font-semibold text-sm sm:text-base">${job.salary}</div>
+                    <div className="text-xs sm:text-sm text-gray-500">Salary</div>
                   </div>
-                  <div className="text-center p-4 bg-secondary rounded-lg">
-                    <Briefcase className="w-6 h-6 mx-auto mb-2 text-blue-600" />
-                    <div className="font-semibold">{job.type}</div>
-                    <div className="text-sm text-muted-foreground">Job Type</div>
+                  <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-blue-600" />
+                    <div className="font-semibold text-sm sm:text-base">{job.type}</div>
+                    <div className="text-xs sm:text-sm text-gray-500">Job Type</div>
                   </div>
-                  <div className="text-center p-4 bg-secondary rounded-lg">
-                    <Users className="w-6 h-6 mx-auto mb-2 text-yellow-600" />
-                    <div className="font-semibold">{job.applications_count || 0}</div>
-                    <div className="text-sm text-muted-foreground">Applicants</div>
+                  <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <Users className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-yellow-600" />
+                    <div className="font-semibold text-sm sm:text-base">{job.applications_count || 0}</div>
+                    <div className="text-xs sm:text-sm text-gray-500">Applicants</div>
                   </div>
-                  <div className="text-center p-4 bg-secondary rounded-lg">
-                    <Calendar className="w-6 h-6 mx-auto mb-2 text-gray-600" />
-                    <div className="font-semibold">
+                  <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <Calendar className="w-5 h-5 sm:w-6 sm:h-6 mx-auto mb-1 sm:mb-2 text-gray-600" />
+                    <div className="font-semibold text-sm sm:text-base">
                       {job.created_at ? new Date(job.created_at).toLocaleDateString() : "N/A"}
                     </div>
-                    <div className="text-sm text-muted-foreground">Posted</div>
+                    <div className="text-xs sm:text-sm text-gray-500">Posted</div>
                   </div>
                 </div>
 
-                <Separator />
+                <Separator className="mb-6" />
 
                 {/* Job Description */}
-                <div>
-                  <h2 className="text-xl font-semibold mb-3">Job Description</h2>
-                  <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                <div className="mb-6">
+                  <h2 className="text-lg sm:text-xl font-semibold mb-3 text-gray-900">Job Description</h2>
+                  <p className="text-gray-600 leading-relaxed whitespace-pre-line text-sm sm:text-base">
                     {job.description}
                   </p>
                 </div>
 
-                <Separator />
+                <Separator className="mb-6" />
 
                 {/* Responsibilities */}
                 {responsibilities.length > 0 && (
                   <>
-                    <div>
-                      <h2 className="text-xl font-semibold mb-3">Key Responsibilities</h2>
+                    <div className="mb-6">
+                      <h2 className="text-lg sm:text-xl font-semibold mb-3 text-gray-900">Key Responsibilities</h2>
                       <ul className="space-y-2">
                         {responsibilities.map((responsibility: string, index: number) => (
                           <li key={index} className="flex items-start gap-2">
                             <div className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
-                            <span className="text-muted-foreground">{responsibility}</span>
+                            <span className="text-gray-600 text-sm sm:text-base">{responsibility}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
-                    <Separator />
+                    <Separator className="mb-6" />
                   </>
                 )}
 
                 {/* Requirements */}
                 {requirements.length > 0 && (
                   <>
-                    <div>
-                      <h2 className="text-xl font-semibold mb-3">Requirements</h2>
+                    <div className="mb-6">
+                      <h2 className="text-lg sm:text-xl font-semibold mb-3 text-gray-900">Requirements</h2>
                       <ul className="space-y-2">
                         {requirements.map((requirement: string, index: number) => (
                           <li key={index} className="flex items-start gap-2">
                             <div className="w-1.5 h-1.5 bg-blue-600 rounded-full mt-2 flex-shrink-0"></div>
-                            <span className="text-muted-foreground">{requirement}</span>
+                            <span className="text-gray-600 text-sm sm:text-base">{requirement}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
-                    <Separator />
+                    <Separator className="mb-6" />
                   </>
                 )}
 
                 {/* Benefits */}
                 {benefits.length > 0 && (
                   <div>
-                    <h2 className="text-xl font-semibold mb-3">Benefits & Perks</h2>
+                    <h2 className="text-lg sm:text-xl font-semibold mb-3 text-gray-900">Benefits & Perks</h2>
                     <ul className="space-y-2">
                       {benefits.map((benefit: string, index: number) => (
                         <li key={index} className="flex items-start gap-2">
                           <div className="w-1.5 h-1.5 bg-green-600 rounded-full mt-2 flex-shrink-0"></div>
-                          <span className="text-muted-foreground">{benefit}</span>
+                          <span className="text-gray-600 text-sm sm:text-base">{benefit}</span>
                         </li>
                       ))}
                     </ul>
@@ -281,19 +273,19 @@ const JobDetail = () => {
           </div>
 
           {/* Sidebar */}
-          <div className="col-span-4 space-y-6">
+          <div className="lg:col-span-4 space-y-4 sm:space-y-6">
             {/* Apply Card */}
-            <Card>
-              <CardContent className="p-6">
+            <Card className="border-gray-200">
+              <CardContent className="p-4 sm:p-6">
                 <Button 
-                  className="w-full mb-4" 
+                  className="w-full mb-3 sm:mb-4 bg-[#039fb3] hover:bg-[#0288a1] h-11 sm:h-12 text-sm sm:text-base" 
                   size="lg"
                   onClick={() => setApplyModalOpen(true)}
                   disabled={!job.available}
                 >
                   {job.available ? "Apply for this Job" : "Not Available"}
                 </Button>
-                <p className="text-sm text-muted-foreground text-center">
+                <p className="text-xs sm:text-sm text-gray-500 text-center">
                   {job.available 
                     ? "Apply now to join an amazing team" 
                     : "This position is currently not available"
@@ -303,99 +295,90 @@ const JobDetail = () => {
             </Card>
 
             {/* Company Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>About {job.company?.name || job.clinck}</CardTitle>
+            <Card className="border-gray-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg">About {job.company?.name || job.clinck || "the Company"}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {job.company?.size && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Company Size</span>
-                    <span className="font-medium">{job.company.size}</span>
+                    <span className="text-gray-600 text-sm sm:text-base">Company Size</span>
+                    <span className="font-medium text-sm sm:text-base">{job.company.size}</span>
                   </div>
                 )}
                 {job.company?.industry && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Industry</span>
-                    <span className="font-medium">{job.company.industry}</span>
+                    <span className="text-gray-600 text-sm sm:text-base">Industry</span>
+                    <span className="font-medium text-sm sm:text-base">{job.company.industry}</span>
                   </div>
                 )}
                 {job.company?.founded && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Founded</span>
-                    <span className="font-medium">{job.company.founded}</span>
+                    <span className="text-gray-600 text-sm sm:text-base">Founded</span>
+                    <span className="font-medium text-sm sm:text-base">{job.company.founded}</span>
                   </div>
                 )}
                 {job.company?.website && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Website</span>
+                    <span className="text-gray-600 text-sm sm:text-base">Website</span>
                     <a 
                       href={job.company.website} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="font-medium text-blue-600 hover:underline"
+                      className="font-medium text-blue-600 hover:underline text-sm sm:text-base truncate ml-2"
                     >
-                      {job.company.website}
+                      Visit
                     </a>
                   </div>
                 )}
                 {job.company?.location && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Location</span>
-                    <span className="font-medium">{job.company.location}</span>
+                    <span className="text-gray-600 text-sm sm:text-base">Location</span>
+                    <span className="font-medium text-sm sm:text-base text-right">{job.company.location}</span>
                   </div>
                 )}
               </CardContent>
             </Card>
 
             {/* Similar Jobs */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Similar Jobs</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex gap-3 p-3 hover:bg-gray-50 rounded-lg cursor-pointer">
-                    <div className="w-10 h-10 rounded bg-gray-200 flex items-center justify-center">
-                      <Building2 className="w-5 h-5 text-gray-400" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-sm">Frontend Developer</h4>
-                      <p className="text-sm text-muted-foreground">StartupXYZ</p>
-                      <p className="text-sm text-green-600">$80k - $100k</p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
+         
           </div>
         </div>
       </div>
 
       {/* Apply Modal */}
       <Dialog open={applyModalOpen} onOpenChange={setApplyModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md w-[95vw] sm:w-full">
           <DialogHeader>
-            <DialogTitle>Apply for {job.title}</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">Apply for {job.title}</DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-2">Cover Letter</label>
+              <label className="block text-sm font-medium mb-2 text-gray-700">Cover Letter</label>
               <Textarea
                 placeholder="Why are you interested in this position? What makes you a good fit?"
                 value={coverLetter}
                 onChange={(e) => setCoverLetter(e.target.value)}
                 rows={6}
+                className="text-sm"
               />
             </div>
           </div>
 
-          <DialogFooter className="flex justify-end gap-2 mt-4">
-            <Button variant="outline" onClick={() => setApplyModalOpen(false)}>
+          <DialogFooter className="flex flex-col sm:flex-row justify-end gap-2 mt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setApplyModalOpen(false)}
+              className="w-full sm:w-auto"
+            >
               Cancel
             </Button>
-            <Button onClick={handleApply} disabled={applying}>
+            <Button 
+              onClick={handleApply} 
+              disabled={applying}
+              className="w-full sm:w-auto bg-[#039fb3] hover:bg-[#0288a1]"
+            >
               {applying ? "Applying..." : "Submit Application"}
             </Button>
           </DialogFooter>

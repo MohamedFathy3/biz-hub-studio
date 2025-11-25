@@ -218,114 +218,116 @@ export default function PendingRequests() {
   }, [requests, searchTerm, activeFilter, currentUser]);
 
   // 🔥 دالة موحدة للرد على طلبات الصداقة
-  const respondToFriendRequest = useCallback(async (requestId: string, action: 'accept' | 'reject' | 'cancel') => {
-    if (!currentUser) return;
+// 🔥 دالة موحدة للرد على طلبات الصداقة - معدلة
+const respondToFriendRequest = useCallback(async (requestId: string, action: 'accept' | 'reject' | 'cancel') => {
+  if (!currentUser) return;
 
-    try {
-      setSelectedRequest(requestId);
-      const request = requests.find(r => r.id === requestId);
-      if (!request) {
-        console.error("❌ Request not found:", requestId);
-        return;
-      }
+  try {
+    setSelectedRequest(requestId);
+    const request = requests.find(r => r.id === requestId);
+    if (!request) {
+      console.error("❌ Request not found:", requestId);
+      return;
+    }
 
-      const otherUserId = request.user1_id === currentUser.id ? request.user2_id : request.user1_id;
+    const otherUserId = request.user1_id === currentUser.id ? request.user2_id : request.user1_id;
 
-      // 🔥 نستخدم الـ API الجديد مباشرة
-      if (action === 'accept' || action === 'reject') {
-        console.log(`🔄 ${action}ing friend request for user:`, otherUserId);
-        
-        const response = await api.post(`/friend-requests/${otherUserId}/respond`, {
-          action: action
+    // 🔥 نستخدم الـ API الجديد مباشرة - مع الـ ID الصح
+    if (action === 'accept' || action === 'reject') {
+      console.log(`🔄 ${action}ing friend request for user:`, otherUserId);
+      
+      // 🔥 هنا التعديل: بنبعت otherUserId بدل requestId
+      const response = await api.post(`/friend-requests/${otherUserId}/respond`, {
+        action: action
+      });
+
+      console.log("✅ API Response:", response.data);
+
+      // باقي الكود زي ما هو...
+      const requestRef = ref(db, `friendships/${requestId}`);
+      
+      if (action === 'accept') {
+        await update(requestRef, {
+          status: 'accepted',
+          updated_at: Date.now(),
+          accepted_at: Date.now()
         });
 
-        console.log("✅ API Response:", response.data);
-
-        // 🔥 نحدث Firebase بناءً على رد الـ API
-        const requestRef = ref(db, `friendships/${requestId}`);
-        
-        if (action === 'accept') {
-          await update(requestRef, {
-            status: 'accepted',
-            updated_at: Date.now(),
-            accepted_at: Date.now()
-          });
-
-          // إشعار القبول
-          await sendNotification(otherUserId, {
-            type: 'friend_request_accepted',
-            title: 'Friend Request Accepted 🎉',
-            message: `${currentUser.first_name} ${currentUser.last_name} accepted your friend request! You are now friends.`,
-            sender_id: currentUser.id,
-            sender_name: currentUser.user_name,
-            sender_image: currentUser.profile_image,
-            data: {
-              friendship_id: requestId,
-              action: 'accepted'
-            }
-          });
-
-        } else if (action === 'reject') {
-          await update(requestRef, {
-            status: 'rejected',
-            updated_at: Date.now(),
-            rejected_at: Date.now()
-          });
-
-          // إشعار الرفض
-          await sendNotification(otherUserId, {
-            type: 'friend_request_rejected',
-            title: 'Friend Request Declined',
-            message: `${currentUser.first_name} ${currentUser.last_name} declined your friend request`,
-            sender_id: currentUser.id,
-            sender_name: currentUser.user_name,
-            sender_image: currentUser.profile_image,
-            data: {
-              friendship_id: requestId,
-              action: 'rejected'
-            }
-          });
-        }
-
-      } else if (action === 'cancel') {
-        // 🔥 إلغاء الطلب - نحذف من Firebase مباشرة
-        console.log("🔄 Cancelling friend request:", requestId);
-        const requestRef = ref(db, `friendships/${requestId}`);
-        await remove(requestRef);
-
-        // إشعار الإلغاء
+        // إشعار القبول
         await sendNotification(otherUserId, {
-          type: 'friend_request_cancelled',
-          title: 'Friend Request Cancelled',
-          message: `${currentUser.first_name} ${currentUser.last_name} cancelled the friend request`,
+          type: 'friend_request_accepted',
+          title: 'Friend Request Accepted 🎉',
+          message: `${currentUser.first_name} ${currentUser.last_name} accepted your friend request! You are now friends.`,
           sender_id: currentUser.id,
           sender_name: currentUser.user_name,
           sender_image: currentUser.profile_image,
           data: {
             friendship_id: requestId,
-            action: 'cancelled'
+            action: 'accepted'
+          }
+        });
+
+      } else if (action === 'reject') {
+        await update(requestRef, {
+          status: 'rejected',
+          updated_at: Date.now(),
+          rejected_at: Date.now()
+        });
+
+        // إشعار الرفض
+        await sendNotification(otherUserId, {
+          type: 'friend_request_rejected',
+          title: 'Friend Request Declined',
+          message: `${currentUser.first_name} ${currentUser.last_name} declined your friend request`,
+          sender_id: currentUser.id,
+          sender_name: currentUser.user_name,
+          sender_image: currentUser.profile_image,
+          data: {
+            friendship_id: requestId,
+            action: 'rejected'
           }
         });
       }
 
-      // 🔥 نحدث الـ state محلياً فوراً علشان السرعة
-      setRequests(prev => prev.filter(req => req.id !== requestId));
+    } else if (action === 'cancel') {
+      // 🔥 إلغاء الطلب - نحذف من Firebase مباشرة
+      console.log("🔄 Cancelling friend request:", requestId);
+      const requestRef = ref(db, `friendships/${requestId}`);
+      await remove(requestRef);
 
-      console.log(`✅ Friend request ${action}ed successfully`);
-
-    } catch (error: any) {
-      console.error(`❌ Error ${action}ing friend request:`, error);
-      
-      // رسالة خطأ مفصلة
-      const errorMessage = error.response?.data?.message || 
-                          error.message || 
-                          `Failed to ${action} friend request`;
-      
-      alert(errorMessage);
-    } finally {
-      setSelectedRequest(null);
+      // إشعار الإلغاء
+      await sendNotification(otherUserId, {
+        type: 'friend_request_cancelled',
+        title: 'Friend Request Cancelled',
+        message: `${currentUser.first_name} ${currentUser.last_name} cancelled the friend request`,
+        sender_id: currentUser.id,
+        sender_name: currentUser.user_name,
+        sender_image: currentUser.profile_image,
+        data: {
+          friendship_id: requestId,
+          action: 'cancelled'
+        }
+      });
     }
-  }, [currentUser, requests, sendNotification]);
+
+    // 🔥 نحدث الـ state محلياً فوراً علشان السرعة
+    setRequests(prev => prev.filter(req => req.id !== requestId));
+
+    console.log(`✅ Friend request ${action}ed successfully`);
+
+  } catch (error: any) {
+    console.error(`❌ Error ${action}ing friend request:`, error);
+    
+    // رسالة خطأ مفصلة
+    const errorMessage = error.response?.data?.message || 
+                        error.message || 
+                        `Failed to ${action} friend request`;
+    
+    alert(errorMessage);
+  } finally {
+    setSelectedRequest(null);
+  }
+}, [currentUser, requests, sendNotification]);
 
   // 🔥 دالات مساعدة مبسطة
   const acceptFriendRequest = useCallback((requestId: string) => {

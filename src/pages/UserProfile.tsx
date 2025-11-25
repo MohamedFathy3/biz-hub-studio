@@ -148,14 +148,18 @@ export default function UserProfile() {
       });
 
       // نرسل للـ backend علشان التوثيق
-      await api.put(`/friend-requests/${id}/accept`);
+      await api.post(`/friend-requests/${id}/respond`,{
+         action: "accept"
+      });
 
       toast.success("Friend request accepted!");
 
     } catch (error: any) {
       console.error("Failed to accept friend request:", error);
       try {
-        await api.post(`/friend-requests/${id}/accept`);
+        await api.post(`/friend-requests/${id}/respond`, {
+           action: "accept"
+        });
         toast.success("Friend request accepted!");
       } catch (secondError) {
         toast.error("Failed to accept friend request");

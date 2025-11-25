@@ -46,7 +46,6 @@ export const CreatePost = ({ onPostCreated }: CreatePostProps) => {
 
       const res = await api.post("/post", payload);
       
-      // ✅ استخراج البوست الجديد من الـ response
       const createdPost = res.data.data;
 
       // ✅ تمريره لــ onPostCreated

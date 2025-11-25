@@ -780,13 +780,7 @@ const handleSelectConversation = (conversation: Conversation) => {
                   </Button>
                 </div>
               </CardTitle>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input 
-                  placeholder="Search doctors..." 
-                  className="pl-10 bg-white/50"
-                />
-              </div>
+             
             </CardHeader>
             <CardContent className="p-0">
               <div className="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">

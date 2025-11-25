@@ -254,7 +254,7 @@ export default function HomeSidebar() {
         accepted_at: Date.now()
       });
 
-      await api.put(`/friend-requests/${senderId}/accept`);
+      await api.put(`/friend-requests/${senderId}/respond`);
 
       setFriendRequests(prev => prev.filter(req => req.sender.id !== senderId));
       

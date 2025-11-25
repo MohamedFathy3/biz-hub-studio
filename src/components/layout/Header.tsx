@@ -51,7 +51,7 @@ export const Header = () => {
   const mobileMenuItems = [
     { href: "/", icon: Home, label: "Home" },
     { href: "/User", icon: Users, label: "Friends" },
-    { href: "/PendingRequests", icon: UserPlus, label: "Pending Requests" },
+    // { href: "/PendingRequests", icon: UserPlus, label: "Pending Requests" },
     { href: "/messages", icon: MessageCircle, label: "Messages" },
     { href: "/stories", icon: BookOpen, label: "Explore Stories" },
     { href: "/store", icon: Store, label: "Store" },
@@ -59,8 +59,8 @@ export const Header = () => {
     { href: "/jobs", icon: Briefcase, label: "Jobs" },
     { href: "/Rent", icon: Store, label: "Rent Clinic" },
     { href: "/event", icon: Calendar, label: "Latest Event" },
-    { href: "/settings", icon: Settings, label: "Settings" },
-    { href: "/analytics", icon: BarChart3, label: "Analytics" },
+    // { href: "/settings", icon: Settings, label: "Settings" },
+    // { href: "/analytics", icon: BarChart3, label: "Analytics" },
   ];
 
   // 🔥 جلب الإشعارات الحقيقية من Firebase
@@ -195,44 +195,55 @@ export const Header = () => {
   };
 
   // 🔥 قبول طلب صداقة
-  const acceptFriendRequest = async (senderId: number) => {
-    if (!user) return;
+const acceptFriendRequest = async (senderId: number) => {
+  if (!user) return;
 
-    try {
-      const friendshipId = [user.id, senderId].sort((a, b) => a - b).join('_');
-      const friendshipRef = ref(db, `friendships/${friendshipId}`);
-      
-      await update(friendshipRef, {
-        status: 'friends',
-        updated_at: Date.now(),
-        accepted_at: Date.now()
-      });
+  try {
+    const friendshipId = [user.id, senderId].sort((a, b) => a - b).join('_');
+    const friendshipRef = ref(db, `friendships/${friendshipId}`);
+    
+    // تحديث حالة الصداقة في Firebase
+    await update(friendshipRef, {
+      status: 'friends',
+      updated_at: Date.now(),
+      accepted_at: Date.now()
+    });
 
-      setFriendRequests(prev => prev.filter(req => req.sender.id !== senderId));
-    } catch (error: any) {
-      console.error("Error accepting friend request:", error);
-    }
-  };
+    // 🔥 إرسال طلب للباك إند علشان التوثيق
+    await api.post(`/friend-requests/${senderId}/respond`, {
+      action: "accept"
+    });
+
+    setFriendRequests(prev => prev.filter(req => req.sender.id !== senderId));
+  } catch (error: any) {
+    console.error("Error accepting friend request:", error);
+  }
+};
 
   // 🔥 رفض طلب صداقة
-  const rejectFriendRequest = async (senderId: number) => {
-    if (!user) return;
+ const rejectFriendRequest = async (senderId: number) => {
+  if (!user) return;
 
-    try {
-      const friendshipId = [user.id, senderId].sort((a, b) => a - b).join('_');
-      const friendshipRef = ref(db, `friendships/${friendshipId}`);
-      
-      await update(friendshipRef, {
-        status: 'rejected',
-        updated_at: Date.now(),
-        rejected_at: Date.now()
-      });
+  try {
+    const friendshipId = [user.id, senderId].sort((a, b) => a - b).join('_');
+    const friendshipRef = ref(db, `friendships/${friendshipId}`);
+    
+    await update(friendshipRef, {
+      status: 'rejected',
+      updated_at: Date.now(),
+      rejected_at: Date.now()
+    });
 
-      setFriendRequests(prev => prev.filter(req => req.sender.id !== senderId));
-    } catch (error: any) {
-      console.error("Error rejecting friend request:", error);
-    }
-  };
+    // 🔥 إرسال طلب للباك إند علشان التوثيق
+    await api.post(`/friend-requests/${senderId}/respond`, {
+      action: "reject"
+    });
+
+    setFriendRequests(prev => prev.filter(req => req.sender.id !== senderId));
+  } catch (error: any) {
+    console.error("Error rejecting friend request:", error);
+  }
+};
 
   // 🔥 الحصول على أيقونة الإشعار
   const getNotificationIcon = (type: string) => {
@@ -324,12 +335,10 @@ export const Header = () => {
               <img
                 src="/website_blue.png"
                 alt="Dent Studio Logo"
-                className="w-8 h-8 object-contain"
+                className=" object-contain"
+                style={{width: "134px"}}
               />
-              <div>
-                <h1 className="text-sm font-bold text-[#039fb3]">Dent</h1>
-                <p className="text-xs text-gray-500">Studio</p>
-              </div>
+          
             </div>
 
           
@@ -340,7 +349,7 @@ export const Header = () => {
             {[
               { href: "/", icon: Home, label: "Home" },
               { href: "/User", icon: Users, label: "Friends" },
-              { href: "/PendingRequests", icon: Users, label: "Pending Requests" },
+              // { href: "/PendingRequests", icon: Users, label: "Pending Requests" },
               { href: "/messages", icon: MessageCircle, label: "Messages" },
             ].map((item) => (
               <NavLink
@@ -440,12 +449,9 @@ export const Header = () => {
                   <img
                     src="/website_blue.png"
                     alt="Dent Studio Logo"
-                    className="w-10 h-10 object-contain"
+                    className="w-25 h-20 object-contain"
                   />
-                  <div>
-                    <h1 className="text-lg font-bold text-[#039fb3]">Dent Studio</h1>
-                    <p className="text-sm text-gray-500">Welcome back!</p>
-                  </div>
+                
                 </div>
                 <Button
                   variant="ghost"

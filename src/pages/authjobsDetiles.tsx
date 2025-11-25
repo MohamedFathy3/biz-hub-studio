@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Search, MapPin, Users, Mail, Phone, Calendar, ArrowLeft, Download, User, FileText, Building2, MessageCircle } from "lucide-react";
+import { Search, MapPin, Users, Calendar, ArrowLeft, Download, User, FileText, Building2, MessageCircle, Mail } from "lucide-react";
 import api from "@/lib/api";
 
 const JobApplicants = () => {
@@ -16,152 +16,73 @@ const JobApplicants = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Fetch job details and applicants
-  const fetchJobAndApplicants = async () => {
+  // Fetch job applicants only
+  const fetchJobApplicants = async () => {
     if (!jobId) return;
     
     setLoading(true);
     try {
-      console.log("🔄 Fetching data for job ID:", jobId);
+      console.log("🔄 Fetching applicants for job ID:", jobId);
 
-      // 🔥 Fetch job details from job-owner API
-      const jobRes = await api.post("/job-owner/index");
-      console.log("✅ Job Owner Response:", jobRes.data);
+      // 🔥 جيب بيانات المتقدمين فقط
+      const applicantsRes = await api.get(`/jobs/${jobId}/applicants`);
+      console.log("✅ Applicants API Response:", applicantsRes.data);
       
-      const jobs = jobRes.data.data || [];
-      const currentJob = jobs.find((j: any) => j.id === parseInt(jobId));
-      
-      if (currentJob) {
-        setJob(currentJob);
-        console.log("✅ Found job:", currentJob);
-        
-        // 🔥 إذا فيه applications في بيانات الوظيفة
-        if (currentJob.applications && currentJob.applications.length > 0) {
-          console.log("✅ Applications found in job data:", currentJob.applications);
-          setApplicants(currentJob.applications);
-        } else {
-          // 🔥 نحاول نجيب الـ applicants من endpoint منفصل
-          try {
-            const applicantsRes = await api.get(`/jobs/${jobId}/applicants`);
-            console.log("✅ Applicants API Response:", applicantsRes.data);
-            setApplicants(applicantsRes.data.data || applicantsRes.data || []);
-          } catch (applicantsError) {
-            console.log("❌ Applicants API failed, using empty array");
-            setApplicants([]);
-          }
-        }
+      // تعامل مع الهيكل الجديد للرد
+      if (applicantsRes.data.result === "Success" && Array.isArray(applicantsRes.data.data)) {
+        setApplicants(applicantsRes.data.data);
+        console.log("✅ Applicants found:", applicantsRes.data.data.length);
       } else {
-        console.log("❌ Job not found in job-owner data");
+        console.log("❌ No applicants found in response");
+        setApplicants([]);
+      }
+
+      // جيب بيانات الوظيفة بشكل منفصل
+      try {
+        const jobRes = await api.get(`/jobs/${jobId}`);
+        const jobData = jobRes.data.data || jobRes.data;
+        setJob(jobData);
+        console.log("✅ Job details found");
+      } catch (jobError) {
+        console.log("⚠️ Could not fetch job details");
       }
 
     } catch (error: any) {
-      console.error("❌ Error fetching data:", error);
+      console.error("❌ Error fetching applicants:", error);
       console.error("❌ Error details:", error.response?.data);
+      setApplicants([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔥 دالة بديلة علشان نستخدم بيانات وهمية للتجربة
-  const useMockData = () => {
-    console.log("🔄 Using mock data for testing");
-    
-    const mockJob = {
-      id: parseInt(jobId || "0"),
-      title: "Senior Frontend Developer",
-      company: {
-        name: "TechCorp Inc.",
-        size: "200-500 employees",
-        industry: "Technology",
-        founded: "2015",
-        website: "www.techcorp.com",
-        location: "Cairo"
-      },
-      location: "San Francisco, CA",
-      type: "Full-time",
-      salary: "120,000",
-      available: true,
-      description: "We are looking for a Senior Frontend Developer to join our growing team.",
-      created_at: "2025-10-18T16:45:00.000Z"
-    };
-    
-    const mockApplicants = [
-      {
-        id: 1,
-        user_name: "John Doe",
-        first_name: "John",
-        last_name: "Doe",
-        profile_image: "",
-        cover_letter: "I am very interested in this position and have 5 years of experience in React and TypeScript. I believe my skills align perfectly with your requirements.",
-        created_at: "2025-10-19T10:30:00.000Z",
-        updated_at: "2025-10-19T10:30:00.000Z",
-        user_id: 101
-      },
-      {
-        id: 2,
-        user_name: "Jane Smith",
-        first_name: "Jane",
-        last_name: "Smith",
-        profile_image: "",
-        cover_letter: "As a senior developer with 8 years of experience, I'm excited about the opportunity to contribute to your team and work on challenging projects.",
-        created_at: "2025-10-19T14:20:00.000Z",
-        updated_at: "2025-10-19T14:20:00.000Z",
-        user_id: 102
-      },
-      {
-        id: 3,
-        user_name: "Mike Johnson",
-        first_name: "Mike",
-        last_name: "Johnson",
-        profile_image: "",
-        cover_letter: "I've been following your company's work and I'm impressed with your projects. I would love to bring my expertise in frontend development to your team.",
-        created_at: "2025-10-20T09:15:00.000Z",
-        updated_at: "2025-10-20T09:15:00.000Z",
-        user_id: 103
-      }
-    ];
-    
-    setJob(mockJob);
-    setApplicants(mockApplicants);
-    setLoading(false);
-  };
-
   useEffect(() => {
     if (jobId) {
-      // جرب الـ API الحقيقي أولاً
-      fetchJobAndApplicants();
-      
-      // إذا مش عاوز تنتظر، افتح التعليق على السطر ده علشان تستخدم البيانات الوهمية
-      // setTimeout(useMockData, 1000);
+      fetchJobApplicants();
     }
   }, [jobId]);
 
   // Filter applicants based on search
   const filteredApplicants = applicants.filter(applicant =>
     applicant.user_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    applicant.first_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    applicant.last_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     applicant.cover_letter?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const downloadCV = (applicant: any) => {
-    console.log("Download CV for:", getApplicantName(applicant));
-    alert(`Download CV for ${getApplicantName(applicant)} - This would open the CV file`);
-  };
+ 
 
   const viewProfile = (applicant: any) => {
     if (applicant.user_id) {
       window.open(`/profile/${applicant.user_id}`, '_blank');
-    } else {
-      alert(`Profile page for ${getApplicantName(applicant)}`);
+    } else if (applicant.id) {
+      window.open(`/profile/${applicant.id}`, '_blank');
     }
   };
 
   const sendMessage = (applicant: any) => {
     if (applicant.user_id) {
       window.open(`/messages?user_id=${applicant.user_id}`, '_blank');
-    } else {
-      alert(`Open chat with ${getApplicantName(applicant)}`);
+    } else if (applicant.id) {
+      window.open(`/messages?user_id=${applicant.id}`, '_blank');
     }
   };
 
@@ -184,10 +105,7 @@ const JobApplicants = () => {
   };
 
   // Get applicant display name
-  const getApplicantName = (applicant: any) => {
-    if (applicant.first_name && applicant.last_name) {
-      return `${applicant.first_name} ${applicant.last_name}`;
-    }
+  const getUserName = (applicant: any) => {
     return applicant.user_name || "Unknown User";
   };
 
@@ -195,11 +113,11 @@ const JobApplicants = () => {
   const getStatusBadge = (applicant: any) => {
     const status = applicant.status || "new";
     const statusConfig: any = {
-      "new": { color: "bg-blue-100 text-blue-800 border-blue-200", label: "New" },
-      "reviewed": { color: "bg-yellow-100 text-yellow-800 border-yellow-200", label: "Reviewed" },
-      "contacted": { color: "bg-purple-100 text-purple-800 border-purple-200", label: "Contacted" },
-      "rejected": { color: "bg-red-100 text-red-800 border-red-200", label: "Rejected" },
-      "hired": { color: "bg-green-100 text-green-800 border-green-200", label: "Hired" }
+      "new": { color: "bg-blue-100 text-blue-800", label: "New" },
+      "reviewed": { color: "bg-yellow-100 text-yellow-800", label: "Reviewed" },
+      "contacted": { color: "bg-purple-100 text-purple-800", label: "Contacted" },
+      "rejected": { color: "bg-red-100 text-red-800", label: "Rejected" },
+      "hired": { color: "bg-green-100 text-green-800", label: "Hired" }
     };
     
     const config = statusConfig[status] || statusConfig["new"];
@@ -223,16 +141,11 @@ const JobApplicants = () => {
               </h1>
               <p className="text-gray-600 flex items-center gap-2">
                 <Building2 className="w-4 h-4" />
-                {job?.company?.name || job?.company_name || "Company"} • {job?.location || "Location"} • {applicants.length} applicant{applicants.length !== 1 ? 's' : ''}
+                {job?.company?.name || job?.company_name || "Company"} • 
+                {job?.location || "Location"} • 
+                {applicants.length} applicant{applicants.length !== 1 ? 's' : ''}
               </p>
             </div>
-            <Badge className={`text-sm px-3 py-1 ${
-              job?.available 
-                ? 'bg-green-100 text-green-800 border-green-200' 
-                : 'bg-red-100 text-red-800 border-red-200'
-            }`}>
-              {job?.available ? 'Active' : 'Closed'}
-            </Badge>
           </div>
         </div>
 
@@ -264,22 +177,6 @@ const JobApplicants = () => {
           </div>
         </div>
 
-        {/* Debug Info - يمكن إزالته في الإنتاج */}
-        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-800">
-            <strong>Job ID:</strong> {jobId} | <strong>Applicants:</strong> {applicants.length} | 
-            <strong> Status:</strong> {loading ? "Loading..." : "Ready"}
-          </p>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="mt-2 text-xs"
-            onClick={useMockData}
-          >
-            Use Test Data
-          </Button>
-        </div>
-
         {/* Applicants List */}
         {loading ? (
           <div className="flex justify-center items-center py-12">
@@ -296,7 +193,7 @@ const JobApplicants = () => {
                       {applicant.profile_image ? (
                         <img
                           src={applicant.profile_image}
-                          alt={getApplicantName(applicant)}
+                          alt={getUserName(applicant)}
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -311,14 +208,14 @@ const JobApplicants = () => {
                         <div>
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className="text-xl font-semibold text-gray-900">
-                              {getApplicantName(applicant)}
+                              {getUserName(applicant)}
                             </h3>
                             {getStatusBadge(applicant)}
                           </div>
                           <div className="flex items-center gap-4 text-gray-600 text-sm flex-wrap">
                             <div className="flex items-center gap-1">
                               <Calendar className="w-4 h-4" />
-                              Applied {formatDate(applicant.created_at)}
+                              Applied {formatDate(applicant.applied_at || applicant.created_at)}
                             </div>
                             <div className="flex items-center gap-1">
                               <FileText className="w-4 h-4" />
@@ -327,15 +224,7 @@ const JobApplicants = () => {
                           </div>
                         </div>
                         <div className="flex gap-2 flex-wrap">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="flex items-center gap-2 border-gray-300 hover:border-[#039fb3] hover:text-[#039fb3]"
-                            onClick={() => downloadCV(applicant)}
-                          >
-                            <Download size={14} />
-                            CV
-                          </Button>
+                        
                           <Button 
                             variant="outline"
                             size="sm"
@@ -370,23 +259,15 @@ const JobApplicants = () => {
                       )}
 
                       {/* Application Details */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
                           <span className="font-semibold text-blue-700 block mb-1">Application Date</span>
-                          <p className="text-blue-600">{formatDate(applicant.created_at)}</p>
+                          <p className="text-blue-600">{formatDate(applicant.applied_at || applicant.created_at)}</p>
                         </div>
                         
                         <div className="bg-green-50 rounded-lg p-3 border border-green-200">
                           <span className="font-semibold text-green-700 block mb-1">Last Updated</span>
                           <p className="text-green-600">{formatDate(applicant.updated_at)}</p>
-                        </div>
-                        
-                        <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
-                          <span className="font-semibold text-purple-700 block mb-1">Contact</span>
-                          <p className="text-purple-600 flex items-center gap-1">
-                            <Mail className="w-4 h-4" />
-                            Platform Message
-                          </p>
                         </div>
                       </div>
                     </div>
@@ -423,56 +304,6 @@ const JobApplicants = () => {
               </div>
             )}
           </div>
-        )}
-
-        {/* Job Summary */}
-        {job && (
-          <Card className="mt-8 border-gray-200">
-            <CardContent className="p-6">
-              <h3 className="font-semibold text-lg mb-4 text-gray-900 flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Job Summary
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                <div className="bg-white p-3 rounded-lg border border-gray-200">
-                  <span className="font-semibold text-gray-700 block mb-1">Position</span>
-                  <p className="text-gray-600">{job.title}</p>
-                </div>
-                <div className="bg-white p-3 rounded-lg border border-gray-200">
-                  <span className="font-semibold text-gray-700 block mb-1">Company</span>
-                  <p className="text-gray-600">{job.company?.name || job.company_name}</p>
-                </div>
-                <div className="bg-white p-3 rounded-lg border border-gray-200">
-                  <span className="font-semibold text-gray-700 block mb-1">Location</span>
-                  <p className="text-gray-600 flex items-center gap-1">
-                    <MapPin className="w-4 h-4" />
-                    {job.location}
-                  </p>
-                </div>
-                <div className="bg-white p-3 rounded-lg border border-gray-200">
-                  <span className="font-semibold text-gray-700 block mb-1">Job Type</span>
-                  <Badge className="bg-blue-100 text-blue-800 border-blue-200">
-                    {job.type}
-                  </Badge>
-                </div>
-                <div className="bg-white p-3 rounded-lg border border-gray-200">
-                  <span className="font-semibold text-gray-700 block mb-1">Salary</span>
-                  <p className="text-green-600 font-semibold">${job.salary}</p>
-                </div>
-                <div className="bg-white p-3 rounded-lg border border-gray-200">
-                  <span className="font-semibold text-gray-700 block mb-1">Posted Date</span>
-                  <p className="text-gray-600">{formatDate(job.created_at)}</p>
-                </div>
-              </div>
-              
-              {job.description && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <span className="font-semibold text-gray-700 block mb-2">Job Description</span>
-                  <p className="text-gray-600 leading-relaxed">{job.description}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
         )}
       </div>
     </MainLayout>

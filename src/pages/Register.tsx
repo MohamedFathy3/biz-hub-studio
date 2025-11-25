@@ -60,7 +60,7 @@ export default function RegisterPage() {
     tools: "[]",
     skills: "[]",
     available_times: "[]",
-    active: true,
+    // active: false,
     has_clinic: false,
     clinic_name: "",
     clinic_address: "",
@@ -195,7 +195,6 @@ export default function RegisterPage() {
     }));
   };
 
-  // دالة إضافة time slot جديدة
   const addTimeSlot = () => {
     const daySelect = document.getElementById('daySelect') as HTMLSelectElement;
     const fromSelect = document.getElementById('fromSelect') as HTMLSelectElement;
