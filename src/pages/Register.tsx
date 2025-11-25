@@ -60,7 +60,6 @@ export default function RegisterPage() {
     tools: "[]",
     skills: "[]",
     available_times: "[]",
-    // active: false,
     has_clinic: false,
     clinic_name: "",
     clinic_address: "",
@@ -371,7 +370,6 @@ const handleSubmit = async (e: React.FormEvent) => {
       tools: typeof form.tools === 'string' ? form.tools : JSON.stringify(form.tools), // JSON string
       skills: parsedSkills, // Array
       available_times: availableTimesString, // JSON string
-      active: 0,
       has_clinic: form.has_clinic ? 1 : 0,
       clinic_name: form.clinic_name || '',
       clinic_address: form.clinic_address || '',
