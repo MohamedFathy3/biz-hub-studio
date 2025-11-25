@@ -140,7 +140,7 @@ export default function UsersList() {
         page: page
       };
 
-      const response = await api.post("/user/index", payload);
+      const response = await api.post("/user/index-public", payload);
       
       if (response.data.result === "Success") {
         setUsers(response.data.data);
