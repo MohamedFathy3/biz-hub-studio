@@ -66,7 +66,6 @@ export const register = async (formData: any) => {
       tools: formData.tools || "[]",
       skills: formData.skills || "[]",
       available_times: formData.available_times || "[]",
-      active: 1,
       has_clinic: Number(formData.has_clinic) || 0,
       clinic_name: formData.clinic_name || "",
       clinic_address: formData.clinic_address || "",
