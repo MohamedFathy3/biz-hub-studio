@@ -60,15 +60,10 @@ export const Sidebar = () => {
               alt="Dent Studio Logo"
               className={cn(
                 "object-contain transition-all duration-300",
-                isCollapsed ? "w-10 h-10" : "w-12 h-12" // حجم أصغر للوجو
+                isCollapsed ? "w-20 h-10" : "w-40 h-8" // حجم أصغر للوجو
               )}
             />
-            {!isCollapsed && (
-              <div className="ml-3">
-                <h1 className="text-lg font-bold text-[#039fb3]">Dent</h1>
-                <p className="text-xs text-gray-500">Studio</p>
-              </div>
-            )}
+          
           </div>
           
           {/* زر التكبير/التصغير */}
