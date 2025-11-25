@@ -42,7 +42,7 @@ const Dashboard = () => {
   const fetchPosts = useCallback(async () => {
     try {
       console.log("🔄 Starting to fetch posts...");
-      const res = await api.post("/post/index");
+      const res = await api.post("/post/index-public");
       console.log("📦 Posts API Response:", res.data);
       
       if (res.data && res.data.data) {
