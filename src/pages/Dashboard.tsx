@@ -130,13 +130,13 @@ const Dashboard = () => {
 
   return (
     <MainLayout>
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-[1920px] mx-auto px-2 sm:px-4 lg:px-6 xl:px-8 py-4">
+      <div className="min-h-screen bg-gray-50 -mt-20">
+        <div className="max-w-[1920px] mx-auto px-2 sm:px-4 lg:px-4 xl:px-1 py-4">
           <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
             
             {/* Left Sidebar - Hidden on mobile, smaller on desktop */}
             <div className="lg:w-64 xl:w-72 flex-shrink-0 order-2 lg:order-1">
-              <div className="sticky top-20 space-y-4">
+              <div className="sticky top-20 space-y-4 mr-10" >
                 <HomeSidebar />
               </div>
             </div>
@@ -244,7 +244,7 @@ const Dashboard = () => {
             </div>
 
             {/* Right Sidebar - Hidden on mobile, smaller on desktop */}
-            <div className="lg:w-64 xl:w-72 flex-shrink-0 order-3 hidden lg:block">
+            <div className="md:hidden lg:w-64 xl:w-72 flex-shrink-0 order-3  lg:hidden">
               <div className="sticky top-20 space-y-4">
                 <FriendComponent />
               </div>

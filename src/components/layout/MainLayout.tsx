@@ -7,18 +7,28 @@ interface MainLayoutProps {
   children: React.ReactNode;
 }
 
+// 🔥 أضف function cn هنا
+function cn(...classes: string[]) {
+  return classes.filter(Boolean).join(' ');
+}
+
 const LayoutContent = ({ children }: MainLayoutProps) => {
   const { isCollapsed } = useSidebar();
 
   return (
     <div className="min-h-screen bg-background">
-      <Sidebar />
+      {/* 🔥 السايدبار يظهر في الديسكتوب فقط */}
+      <div className="hidden lg:block">
+        <Sidebar />
+      </div>
+      
       <Header />
+      
       <main className={cn(
         "pt-16 transition-all duration-300",
-        isCollapsed ? "ml-16" : "ml-64"
+        isCollapsed ? "lg:ml-20" : "lg:ml-64" // 🔥 margin فقط في الديسكتوب
       )}>
-        <div className="p-6">
+        <div className="p-4 md:p-6">
           {children}
         </div>
       </main>
@@ -33,8 +43,3 @@ export const MainLayout = ({ children }: MainLayoutProps) => {
     </SidebarProvider>
   );
 };
-
-// Utility function for class names
-function cn(...classes: string[]) {
-  return classes.filter(Boolean).join(' ');
-}

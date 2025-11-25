@@ -34,8 +34,8 @@ const morePages = [
 ];
 
 const accountItems = [
-  { id: "settings", label: "Settings", icon: Settings, href: "/settings" },
-  { id: "analytics", label: "Analytics", icon: BarChart3, href: "/analytics" },
+  // { id: "settings", label: "Settings", icon: Settings, href: "/settings" },
+  // { id: "analytics", label: "Analytics", icon: BarChart3, href: "/analytics" },
 ];
 
 export const Sidebar = () => {

@@ -52,7 +52,15 @@ const Jobs = () => {
   const fetchJobs = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/job");
+      const res = await api.post("/job/index", {
+        filters: {  "active":1},
+        orderBy: "id",
+        orderByDirection: "asc",
+        perPage,
+        paginate: true,
+        deleted: false,
+        page,
+      });
       console.log("🔍 Jobs data:", res.data);
       setJobs(res.data.data || []);
     } catch (error) {

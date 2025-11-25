@@ -83,13 +83,11 @@ api.interceptors.request.use(async (config) => {
     console.log("✅ Authorization header added");
   }
 
-  // 🟢 طباعة headers النهائية
   console.log("📋 Final Request Headers:", config.headers);
 
   return config;
 });
 
-// 🟢 Interceptor للردود مع معالجة 419
 api.interceptors.response.use(
   (response) => {
     console.log("✅ Success Response:", {

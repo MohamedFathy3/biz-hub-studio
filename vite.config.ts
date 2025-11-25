@@ -20,7 +20,6 @@ export default defineConfig(({ mode }) => ({
           });
           proxy.on("proxyReq", (proxyReq, req, _res) => {
             console.log("Sending Request to the Target:", req.method, req.url);
-            // إضافة headers إضافية إذا لزم الأمر
             proxyReq.setHeader('X-Requested-With', 'XMLHttpRequest');
           });
           proxy.on("proxyRes", (proxyRes, req, _res) => {
@@ -46,6 +45,18 @@ export default defineConfig(({ mode }) => ({
         },
       },
     },
+  },
+  // 🔽 إضافة هذا القسم لحل المشكلة
+  preview: {
+    host: "::",
+    port: 7000,
+    allowedHosts: [
+      'dentin.cloud',
+      'localhost',
+      '127.0.0.1',
+      '::1',
+      '.dentin.cloud' // للسماح بالنطاقات الفرعية أيضاً
+    ]
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

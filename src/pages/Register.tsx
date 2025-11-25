@@ -305,7 +305,7 @@ const addSkill = () => {
         if (!form.where_did_you_work || form.where_did_you_work.trim() === '') newErrors.where_did_you_work = "Work history is required";
         if (!form.address || form.address.trim() === '') newErrors.address = "Address is required";
         if (skills.length === 0) newErrors.skills = "Please add at least one skill";
-        if (tools.length === 0) newErrors.tools = "Please add at least one tool";
+        // if (tools.length === 0) newErrors.tools = "Please add at least one tool";
         
         // إذا كان مساعد جامعي، يجب تعبئة الجامعة
         if (form.is_work_assistant_university && !form.assistant_university) {
@@ -372,7 +372,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       tools: typeof form.tools === 'string' ? form.tools : JSON.stringify(form.tools), // JSON string
       skills: parsedSkills, // Array
       available_times: availableTimesString, // JSON string
-      active: form.active ? 1 : 0,
+      active: 0,
       has_clinic: form.has_clinic ? 1 : 0,
       clinic_name: form.clinic_name || '',
       clinic_address: form.clinic_address || '',
@@ -621,9 +621,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 >
   <option value="">Select Degree</option>
   <option value="gp">G.P</option>
-  <option value="master">Master</option>
   <option value="phd">PhD</option>
-  <option value="bachelor">Bachelor</option>
   <option value="diploma">Diploma</option>
 </select>
                   {errors.postgraduate_degree && (
@@ -631,7 +629,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                   )}
                 </div>
 
-                <div className="group">
+                {/* <div className="group">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Specialization
                   </label>
@@ -643,7 +641,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                     className="w-full bg-gray-50 border border-gray-300 p-4 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039fb3] focus:border-[#039fb3] text-gray-800 transition-all"
                     placeholder="Enter your specialization"
                   />
-                </div>
+                </div> */}
                 
                 {/* Fields Selection */}
                 <div className="md:col-span-2 group">
@@ -927,24 +925,24 @@ const handleSubmit = async (e: React.FormEvent) => {
                       </div>
                     ))}
                   </div>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newTool}
-                      onChange={(e) => setNewTool(e.target.value)}
-                      placeholder="Add a tool"
-                      className="flex-1 bg-gray-50 border border-gray-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039fb3] focus:border-[#039fb3] text-gray-800 placeholder-gray-400 transition-all"
-                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTool())}
-                    />
-                    <button 
-                      type="button" 
-                      onClick={addTool}
-                      className="bg-[#039fb3] text-white px-6 py-3 rounded-xl hover:bg-[#0288a1] transition-all flex items-center space-x-2"
-                    >
-                      <span>+</span>
-                      <span>Add</span>
-                    </button>
-                  </div>
+                 <div className="flex gap-2">
+  <input
+    type="text"
+    value={newTool}
+    onChange={(e) => setNewTool(e.target.value)}
+    placeholder="Add a tool"
+    className="flex-1 bg-gray-50 border border-gray-300 p-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#039fb3] focus:border-[#039fb3] text-gray-800 placeholder-gray-400 transition-all"
+    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTool())}
+  />
+  <button 
+    type="button" 
+    onClick={addTool}
+    className="bg-[#039fb3] text-white px-6 py-3 rounded-xl hover:bg-[#0288a1] transition-all flex items-center space-x-2"
+  >
+    <span>+</span>
+    <span>Add</span>
+  </button>
+</div>
                 </div>
 
                 {/* Skills Section */}

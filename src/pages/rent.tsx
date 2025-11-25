@@ -39,7 +39,7 @@ const Store = () => {
   const fetchProducts = async (page: number) => {
     try {
       const res = await api.post("/rent/index", {
-        filters: {},
+        filters: {  "active":1},
         orderBy: "id",
         orderByDirection: "asc",
         perPage,

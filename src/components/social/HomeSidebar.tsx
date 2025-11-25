@@ -306,12 +306,12 @@ export default function HomeSidebar() {
 
   // 🔥 مشاهدة كل الطلبات
   const handleViewAllRequests = () => {
-    navigate('/friends?tab=requests');
+    navigate('/PendingRequests');
   };
 
   // 🔥 مشاهدة كل الأصدقاء
   const handleViewAllFriends = () => {
-    navigate('/friends?tab=friends');
+    navigate('/PendingRequests');
   };
 
   // 🔥 مشاهدة كل الإشعارات
@@ -372,7 +372,7 @@ export default function HomeSidebar() {
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
   return (
-    <div className="w-[280px] space-y-4">
+    <div className="fixed w-[280px] space-y-4 ">
       {/* Notifications */}
       <Card className="rounded-2xl shadow-sm hover:shadow-md transition p-4">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -455,14 +455,7 @@ export default function HomeSidebar() {
               )}
               
               {notifications.length > 0 && (
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  className="w-full text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                  onClick={handleViewAllNotifications}
-                >
-                  View All Notifications
-                </Button>
+            <></>
               )}
             </>
           ) : (
@@ -657,7 +650,7 @@ export default function HomeSidebar() {
       </Card>
 
       {/* Events */}
-      <Card className="rounded-2xl shadow-sm hover:shadow-md transition p-4">
+      {/* <Card className="rounded-2xl shadow-sm hover:shadow-md transition p-4">
         <CardHeader className="flex items-center gap-2 pb-3">
           <Calendar className="text-orange-500 w-5 h-5" />
           <CardTitle className="text-base font-semibold">Medical Events</CardTitle>
@@ -673,10 +666,10 @@ export default function HomeSidebar() {
             </div>
           ))}
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Photos */}
-      <Card className="rounded-2xl shadow-sm hover:shadow-md transition p-4">
+      {/* <Card className="rounded-2xl shadow-sm hover:shadow-md transition p-4">
         <CardHeader className="flex items-center gap-2 pb-3">
           <ImageIcon className="text-pink-500 w-5 h-5" />
           <CardTitle className="text-base font-semibold">Dental Photos</CardTitle>
@@ -694,7 +687,7 @@ export default function HomeSidebar() {
             ))}
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   );
 }

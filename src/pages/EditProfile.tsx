@@ -286,25 +286,24 @@ export default function EditProfile() {
         }));
     };
 
-    const addTool = () => {
-        if (newTool.trim() !== "") {
-            console.log(`🛠️ Adding tool: ${newTool}`);
-            const updatedTools = [...tools, newTool.trim()];
-            setTools(updatedTools);
-            setForm({ ...form, tools: JSON.stringify(updatedTools) });
-            setNewTool("");
-        }
-    };
+  const addTool = () => {
+  if (newTool.trim() !== "") {
+    console.log(`🛠️ Adding tool: ${newTool}`);
+    const updatedTools = [...tools, newTool.trim()];
+    setTools(updatedTools);
+    setNewTool("");
+  }
+};
 
-    const addSkill = () => {
-        if (newSkill.trim() !== "") {
-            console.log(`💪 Adding skill: ${newSkill}`);
-            const updatedSkills = [...skills, newSkill.trim()];
-            setSkills(updatedSkills);
-            setForm({ ...form, skills: JSON.stringify(updatedSkills) });
-            setNewSkill("");
-        }
-    };
+const addSkill = () => {
+  if (newSkill.trim() !== "") {
+    console.log(`💪 Adding skill: ${newSkill}`);
+    const updatedSkills = [...skills, newSkill.trim()];
+    setSkills(updatedSkills);
+    setNewSkill("");
+  }
+};
+
 
     const removeTool = (index: number) => {
         console.log(`🗑️ Removing tool at index: ${index}`);
@@ -374,91 +373,90 @@ export default function EditProfile() {
         return Object.keys(newErrors).length === 0;
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        
-        console.log("🎯 SUBMIT BUTTON CLICKED");
-        console.log("📋 FINAL FORM DATA:", form);
-        
-        if (!validateStep(currentStep)) {
-            console.log("❌ Validation failed, stopping submission");
-            return;
-        }
-        
-        setSaving(true);
-        
-        try {
-            // Parse JSON strings to arrays before sending
-            const parsedSkills = typeof form.skills === 'string' ? JSON.parse(form.skills) : form.skills;
-            const parsedTools = typeof form.tools === 'string' ? JSON.parse(form.tools) : form.tools;
-            const parsedAvailableTimes = typeof form.available_times === 'string' ? JSON.parse(form.available_times) : form.available_times;
-
-            // Create a clean data object with proper formatting
-            const submitData: any = {
-                email: form.email,
-                user_name: form.user_name,
-                first_name: form.first_name,
-                last_name: form.last_name,
-                phone: form.phone,
-                birth_date: form.birth_date,
-                graduation_year: form.graduation_year,
-                university: form.university,
-                graduation_grade: form.graduation_grade,
-                postgraduate_degree: form.postgraduate_degree,
-                specialization: form.specialization || '',
-                experience_years: form.experience_years,
-                description: form.description || '',
-                where_did_you_work: form.where_did_you_work || '',
-                address: form.address || '',
-                assistant_university: form.assistant_university || '',
-                is_work_assistant_university: form.is_work_assistant_university ? 1 : 0,
-                tools: parsedTools, // Use parsed array instead of string
-                skills: parsedSkills, // Use parsed array instead of string
-                available_times: parsedAvailableTimes, // Use parsed array instead of string
-                active: form.active ? 1 : 0,
-                has_clinic: form.has_clinic ? 1 : 0,
-                clinic_name: form.clinic_name || '',
-                clinic_address: form.clinic_address || '',
-                profile_image: form.profile_image,
-                cover_image: form.cover_image,
-                cv: form.cv,
-                graduation_certificate_image: form.graduation_certificate_image,
-                fields: form.fields,
-                course_certificates_image: form.course_certificates_image,
-            };
-
-            // Only add password if it's provided
-            if (form.password) {
-                submitData.password = form.password;
-            }
-
-            console.log("🔍 Checking specific fields before submit:");
-            console.log("fields array:", form.fields);
-            console.log("skills (parsed):", parsedSkills);
-            console.log("tools (parsed):", parsedTools);
-            console.log("available_times (parsed):", parsedAvailableTimes);
-            console.log("course_certificates_image:", form.course_certificates_image);
-
-            console.log("🚀 FINAL DATA TO SEND:", submitData);
-
-            const userId = id || currentUser?.id;
-            const response = await api.put(`/user/${userId}`, submitData);
-            
-            console.log("✅ Update successful:", response.data);
-            alert("🎉 Profile updated successfully!");
-            navigate(-1);
-            
-        } catch (err: any) {
-            console.error("❌ Update failed:", err);
-            const errorMessage = err.response?.data?.message || 
-                                err.response?.data?.error || 
-                                err.message ||
-                                "Something went wrong";
-            alert(`Update error: ${errorMessage}`);
-        } finally {
-            setSaving(false);
-        }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  console.log("🎯 SUBMIT BUTTON CLICKED");
+  console.log("📋 FINAL FORM DATA:", form);
+  
+  if (!validateStep(currentStep)) {
+    console.log("❌ Validation failed, stopping submission");
+    return;
+  }
+  
+  setSaving(true);
+  
+  try {
+    // 🔥 FIX: تحقق من توقعات الـ API بناءً على البيانات الموجودة
+    const submitData: any = {
+      email: form.email,
+      user_name: form.user_name,
+      first_name: form.first_name,
+      last_name: form.last_name,
+      phone: form.phone,
+      birth_date: form.birth_date,
+      graduation_year: form.graduation_year,
+      university: form.university,
+      graduation_grade: form.graduation_grade,
+      postgraduate_degree: form.postgraduate_degree,
+      specialization: form.specialization || '',
+      experience_years: form.experience_years,
+      description: form.description || '',
+      where_did_you_work: form.where_did_you_work || '',
+      address: form.address || '',
+      assistant_university: form.assistant_university || '',
+      is_work_assistant_university: form.is_work_assistant_university ? 1 : 0,
+      has_clinic: form.has_clinic ? 1 : 0,
+      clinic_name: form.clinic_name || '',
+      clinic_address: form.clinic_address || '',
+      profile_image: form.profile_image,
+      cover_image: form.cover_image,
+      cv: form.cv,
+      graduation_certificate_image: form.graduation_certificate_image,
+      fields: form.fields,
+      course_certificates_image: form.course_certificates_image,
     };
+
+    // 🔥 بناءً على البيانات الموجودة، الـ API بيتوقع:
+    // - tools: string (JSON string)
+    // - skills: array  
+    // - available_times: string (JSON string)
+    submitData.tools = JSON.stringify(tools); // 🔥 حول لـ JSON string
+    submitData.skills = skills; // 🔥 أرسل array مباشرة
+    submitData.available_times = JSON.stringify(availableTimes); // 🔥 حول لـ JSON string
+
+    // Only add password if it's provided
+    if (form.password) {
+      submitData.password = form.password;
+    }
+
+    console.log("🔍 Checking specific fields before submit:");
+    console.log("tools (stringified):", JSON.stringify(tools));
+    console.log("skills (array):", skills);
+    console.log("available_times (stringified):", JSON.stringify(availableTimes));
+    console.log("fields array:", form.fields);
+    console.log("course_certificates_image:", form.course_certificates_image);
+
+    console.log("🚀 FINAL DATA TO SEND:", submitData);
+
+    const userId = id || currentUser?.id;
+    const response = await api.put(`/user/${userId}`, submitData);
+    
+    console.log("✅ Update successful:", response.data);
+    alert("🎉 Profile updated successfully!");
+    navigate(-1);
+    
+  } catch (err: any) {
+    console.error("❌ Update failed:", err);
+    const errorMessage = err.response?.data?.message || 
+                        err.response?.data?.error || 
+                        err.message ||
+                        "Something went wrong";
+    alert(`Update error: ${errorMessage}`);
+  } finally {
+    setSaving(false);
+  }
+};
 
     const nextStep = () => {
         console.log(`➡️ Moving from step ${currentStep} to ${currentStep + 1}`);
