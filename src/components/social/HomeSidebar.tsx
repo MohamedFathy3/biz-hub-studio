@@ -635,7 +635,7 @@ export default function HomeSidebar() {
                   </Button>
                 </div>
               ))}
-
+{/* 
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -643,7 +643,7 @@ export default function HomeSidebar() {
                 onClick={handleViewAllFriends}
               >
                 View All Friends
-              </Button>
+              </Button> */}
             </>
           )}
         </CardContent>

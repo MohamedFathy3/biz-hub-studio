@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,9 +21,15 @@ import { Link, useParams } from "react-router-dom";
 import api from "@/lib/api";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AuthContext } from "@/Context/AuthContext";
+
+// Firebase imports
+import { db } from '@/lib/firebase';
+import { ref, set } from 'firebase/database';
 
 const JobDetail = () => {
   const { id } = useParams();
+  const { user } = useContext(AuthContext);
   const [job, setJob] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [applyModalOpen, setApplyModalOpen] = useState(false);
@@ -49,6 +55,38 @@ const JobDetail = () => {
     }
   }, [id]);
 
+  // 🔥 دالة إرسال الإشعارات
+  const sendNotification = async (receiverId: number, notificationData: {
+    type: string;
+    title: string;
+    message: string;
+    sender_id: number;
+    sender_name: string;
+    sender_image: string;
+    data?: any;
+  }) => {
+    try {
+      if (!user) return;
+
+      const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const notificationRef = ref(db, `notifications/${receiverId}/${notificationId}`);
+      
+      const fullNotificationData = {
+        ...notificationData,
+        id: notificationId,
+        timestamp: Date.now(),
+        read: false,
+        sender_type: 'user'
+      };
+
+      await set(notificationRef, fullNotificationData);
+      console.log("✅ Notification sent successfully to user:", receiverId);
+      
+    } catch (error) {
+      console.error("❌ Error sending notification:", error);
+    }
+  };
+
   // Handle job application
   const handleApply = async () => {
     if (!coverLetter.trim()) {
@@ -56,16 +94,101 @@ const JobDetail = () => {
       return;
     }
 
+    if (!user) {
+      alert("Please login to apply for this job");
+      return;
+    }
+
     setApplying(true);
     try {
+      // 1. إرسال الطلب للـ API
       await api.post(`/jobs/${id}/apply`, {
         cover_letter: coverLetter
       });
+
+      // 🔥 2. إرسال إشعار لصاحب العمل
+      if (job.user_id || job.company?.user_id) {
+        const employerId = job.user_id || job.company?.user_id;
+        
+        await sendNotification(employerId, {
+          type: 'new_job_application',
+          title: 'New Job Application 📝',
+          message: `${user.user_name} applied for your job: ${job.title}`,
+          sender_id: user.id,
+          sender_name: user.user_name,
+          sender_image: user.profile_image,
+          data: {
+            job_id: job.id,
+            job_title: job.title,
+            applicant_id: user.id,
+            applicant_name: user.user_name,
+            cover_letter: coverLetter.substring(0, 200) + '...',
+            applied_at: new Date().toISOString()
+          }
+        });
+
+        // 🔥 3. إرسال إشعار push notification إضافي
+        try {
+          await api.post("/send-notification", {
+            user_id: employerId,
+            title: "New Job Application 📝",
+            message: `${user.user_name} applied for your job: ${job.title}`,
+            data: {
+              type: 'new_job_application',
+              job_id: job.id,
+              applicant_id: user.id
+            }
+          });
+          console.log("✅ Push notification sent to employer");
+        } catch (notifError) {
+          console.log("ℹ️ Push notification service not available");
+        }
+      }
+
+      // 🔥 4. إرسال إشعار تأكيد للمتقدم
+      await sendNotification(user.id, {
+        type: 'job_application_sent',
+        title: 'Application Sent! ✅',
+        message: `Your application for ${job.title} has been submitted successfully`,
+        sender_id: user.id,
+        sender_name: 'System',
+        sender_image: '',
+        data: {
+          job_id: job.id,
+          job_title: job.title,
+          company_name: job.company?.name || job.clinck,
+          applied_at: new Date().toISOString(),
+          status: 'pending'
+        }
+      });
+
       setApplySuccess(true);
       setApplyModalOpen(false);
       setCoverLetter("");
-    } catch (error) {
+
+      // تحديث عدد المتقدمين
+      fetchJobDetail();
+
+    } catch (error: any) {
       console.error("Error applying for job:", error);
+      
+      // 🔥 إرسال إشعار خطأ
+      if (user) {
+        await sendNotification(user.id, {
+          type: 'application_error',
+          title: 'Application Failed ❌',
+          message: `Failed to apply for ${job.title}. Please try again.`,
+          sender_id: user.id,
+          sender_name: 'System',
+          sender_image: '',
+          data: {
+            job_id: job.id,
+            job_title: job.title,
+            error: error.response?.data?.message || 'Unknown error'
+          }
+        });
+      }
+      
       alert("Failed to apply for job");
     } finally {
       setApplying(false);
@@ -126,7 +249,9 @@ const JobDetail = () => {
             <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 flex-shrink-0" />
             <div>
               <p className="font-medium text-green-800 text-sm sm:text-base">Application Submitted!</p>
-              <p className="text-xs sm:text-sm text-green-600">Your application has been sent successfully.</p>
+              <p className="text-xs sm:text-sm text-green-600">
+                Your application has been sent successfully. The employer has been notified.
+              </p>
             </div>
           </div>
         )}
@@ -281,14 +406,16 @@ const JobDetail = () => {
                   className="w-full mb-3 sm:mb-4 bg-[#039fb3] hover:bg-[#0288a1] h-11 sm:h-12 text-sm sm:text-base" 
                   size="lg"
                   onClick={() => setApplyModalOpen(true)}
-                  disabled={!job.available}
+                  disabled={!job.available || !user}
                 >
-                  {job.available ? "Apply for this Job" : "Not Available"}
+                  {!user ? "Login to Apply" : job.available ? "Apply for this Job" : "Not Available"}
                 </Button>
                 <p className="text-xs sm:text-sm text-gray-500 text-center">
-                  {job.available 
-                    ? "Apply now to join an amazing team" 
-                    : "This position is currently not available"
+                  {!user 
+                    ? "Please login to apply for this position"
+                    : job.available 
+                      ? "Apply now to join an amazing team" 
+                      : "This position is currently not available"
                   }
                 </p>
               </CardContent>
@@ -354,6 +481,12 @@ const JobDetail = () => {
           </DialogHeader>
           
           <div className="space-y-4">
+            <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> The employer will receive a notification about your application immediately.
+              </p>
+            </div>
+            
             <div>
               <label className="block text-sm font-medium mb-2 text-gray-700">Cover Letter</label>
               <Textarea
@@ -371,12 +504,13 @@ const JobDetail = () => {
               variant="outline" 
               onClick={() => setApplyModalOpen(false)}
               className="w-full sm:w-auto"
+              disabled={applying}
             >
               Cancel
             </Button>
             <Button 
               onClick={handleApply} 
-              disabled={applying}
+              disabled={applying || !coverLetter.trim()}
               className="w-full sm:w-auto bg-[#039fb3] hover:bg-[#0288a1]"
             >
               {applying ? "Applying..." : "Submit Application"}

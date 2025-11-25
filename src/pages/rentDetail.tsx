@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useParams } from "react-router-dom";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -7,14 +7,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import api from "@/lib/api";
 import { ChevronLeft, ChevronRight, MapPin, Calendar, Clock } from "lucide-react";
+import { AuthContext } from "@/Context/AuthContext";
+
+// Firebase imports
+import { db } from '@/lib/firebase';
+import { ref, push, set } from 'firebase/database';
 
 const ProDetail = () => {
   const { id } = useParams();
+  const { user } = useContext(AuthContext);
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [messageBody, setMessageBody] = useState("");
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [sending, setSending] = useState(false);
 
   const fetchProduct = async () => {
     try {
@@ -31,19 +38,192 @@ const ProDetail = () => {
     fetchProduct();
   }, [id]);
 
-  const handleSendMessage = async () => {
-    if (!product) return;
+  // 🔥 دالة إرسال الإشعارات
+  const sendNotification = async (receiverId: number, notificationData: {
+    type: string;
+    title: string;
+    message: string;
+    sender_id: number;
+    sender_name: string;
+    sender_image: string;
+    data?: any;
+  }) => {
     try {
+      if (!user) return;
+
+      const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const notificationRef = ref(db, `notifications/${receiverId}/${notificationId}`);
+      
+      const fullNotificationData = {
+        ...notificationData,
+        id: notificationId,
+        timestamp: Date.now(),
+        read: false,
+        sender_type: 'user'
+      };
+
+      await set(notificationRef, fullNotificationData);
+      console.log("✅ Notification sent successfully to user:", receiverId);
+      
+    } catch (error) {
+      console.error("❌ Error sending notification:", error);
+    }
+  };
+
+  // 🔥 دالة مساعدة علشان تعمل room ID فريد
+  const generateRoomId = (userId1: number, userId2: number) => {
+    return [userId1, userId2].sort((a, b) => a - b).join('_');
+  };
+
+  const handleSendMessage = async () => {
+    if (!product || !user || !messageBody.trim()) {
+      alert("Please write a message first.");
+      return;
+    }
+
+    setSending(true);
+    
+    try {
+      const receiverId = product.user.id;
+      const roomId = generateRoomId(user.id, receiverId);
+      const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      const messageData = {
+        id: messageId,
+        body: messageBody,
+        sender_id: user.id,
+        receiver_id: receiverId,
+        sender_name: user.user_name,
+        sender_type: 'user',
+        timestamp: Date.now(),
+        created_at: new Date().toISOString(),
+        product_info: {
+          product_id: product.id,
+          product_name: product.name,
+          product_price: product.price,
+          product_type: product.type,
+          duration: product.duration,
+          product_image: product.gallery?.[0]?.fullUrl
+        }
+      };
+
+      console.log("📤 Sending message from rent page:", messageData);
+
+      // 1. إرسال للـ Laravel API علشان يتخزن في الداتابيز
       await api.post("/chat/send", {
         body: messageBody,
-        receiver_id: product.user.id,
+        receiver_id: receiverId,
+        product_id: product.id
       });
-      alert("Message sent successfully!");
+      console.log("✅ Message sent to Laravel API");
+
+      // 2. إرسال للـ Firebase علشان الـ realtime
+      const messagesRef = ref(db, `chats/${roomId}/messages`);
+      const newMessageRef = push(messagesRef);
+      
+      await set(newMessageRef, messageData);
+      console.log("✅ Message sent to Firebase");
+
+      // 🔥 3. إرسال إشعار للبائع
+      await sendNotification(receiverId, {
+        type: 'new_rent_message',
+        title: 'New Rental Inquiry 🏠',
+        message: `${user.user_name} is interested in your ${product.type === "rent" ? "rental" : "product"}: ${product.name}`,
+        sender_id: user.id,
+        sender_name: user.user_name,
+        sender_image: user.profile_image,
+        data: {
+          product_id: product.id,
+          product_name: product.name,
+          product_type: product.type,
+          price: product.price,
+          duration: product.duration,
+          room_id: roomId,
+          message_preview: messageBody.substring(0, 100) + '...'
+        }
+      });
+
+      // 🔥 4. إرسال إشعار push notification إضافي
+      try {
+        await api.post("/send-notification", {
+          user_id: receiverId,
+          title: "New Rental Inquiry 🏠",
+          message: `${user.user_name} is interested in your ${product.name}`,
+          data: {
+            type: 'new_rent_message',
+            product_id: product.id,
+            room_id: roomId
+          }
+        });
+        console.log("✅ Push notification sent");
+      } catch (notifError) {
+        console.log("ℹ️ Push notification service not available");
+      }
+
+      // نجاح الإرسال
+      alert("Message sent successfully! The seller will be notified.");
       setIsModalOpen(false);
       setMessageBody("");
-    } catch (err) {
-      console.error(err);
-      alert("Failed to send message.");
+
+    } catch (err: any) {
+      console.error("❌ Error sending message:", err);
+      
+      // لو فشل الـ API، نجرب نرسل للـ Firebase فقط
+      try {
+        if (product && user) {
+          const receiverId = product.user.id;
+          const roomId = generateRoomId(user.id, receiverId);
+          const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+          const messageData = {
+            id: messageId,
+            body: messageBody,
+            sender_id: user.id,
+            receiver_id: receiverId,
+            sender_name: user.user_name,
+            sender_type: 'user',
+            timestamp: Date.now(),
+            created_at: new Date().toISOString(),
+            product_info: {
+              product_id: product.id,
+              product_name: product.name,
+              product_price: product.price,
+              product_type: product.type,
+              duration: product.duration
+            }
+          };
+
+          const messagesRef = ref(db, `chats/${roomId}/messages`);
+          const newMessageRef = push(messagesRef);
+          await set(newMessageRef, messageData);
+          
+          // 🔥 إرسال إشعار حتى لو فشل الـ API
+          await sendNotification(receiverId, {
+            type: 'new_rent_message',
+            title: 'New Rental Inquiry 🏠',
+            message: `${user.user_name} is interested in your ${product.type === "rent" ? "rental" : "product"}: ${product.name}`,
+            sender_id: user.id,
+            sender_name: user.user_name,
+            sender_image: user.profile_image,
+            data: {
+              product_id: product.id,
+              product_name: product.name,
+              product_type: product.type,
+              price: product.price,
+              room_id: roomId
+            }
+          });
+          
+          alert("Message sent via Firebase! The seller has been notified.");
+          setIsModalOpen(false);
+          setMessageBody("");
+        }
+      } catch (firebaseError) {
+        console.error("❌ Firebase also failed:", firebaseError);
+        alert("Failed to send message. Please try again.");
+      }
+    } finally {
+      setSending(false);
     }
   };
 
@@ -243,14 +423,19 @@ const ProDetail = () => {
             {/* زر التواصل */}
             <Button
               onClick={() => {
-                const defaultMessage = `Hello! I'm interested in your "${product.name}" for $${product.price}`;
+                if (!user) {
+                  alert("Please login to contact the seller");
+                  return;
+                }
+                const defaultMessage = `Hello! I'm interested in your "${product.name}" for $${product.price}${product.type === "rent" ? ` for ${product.duration} days` : ''}`;
                 setMessageBody(defaultMessage);
                 setIsModalOpen(true);
               }}
               className="w-full py-3 text-lg"
               size="lg"
+              disabled={sending}
             >
-              Contact Seller
+              {sending ? "Sending..." : "Contact Seller"}
             </Button>
           </div>
         </div>
@@ -271,7 +456,7 @@ const ProDetail = () => {
               />
               <div>
                 <p className="font-semibold">{product.user.user_name}</p>
-                <p className="text-sm text-gray-500">About the product: {product.name}</p>
+                <p className="text-sm text-gray-500">About the {product.type === "rent" ? "rental" : "product"}: {product.name}</p>
               </div>
             </div>
 
@@ -296,6 +481,7 @@ const ProDetail = () => {
               {product.type === "rent" && (
                 <p><strong>Rental Duration:</strong> {product.duration} days</p>
               )}
+              <p><strong>Type:</strong> {product.type === "rent" ? "Rental" : "Sale"}</p>
             </div>
 
             {/* أزرار الإجراء */}
@@ -306,14 +492,15 @@ const ProDetail = () => {
                   setIsModalOpen(false);
                   setMessageBody("");
                 }}
+                disabled={sending}
               >
                 Cancel
               </Button>
               <Button 
                 onClick={handleSendMessage}
-                disabled={!messageBody.trim()}
+                disabled={!messageBody.trim() || sending}
               >
-                Send Message
+                {sending ? "Sending..." : "Send Message"}
               </Button>
             </div>
           </div>

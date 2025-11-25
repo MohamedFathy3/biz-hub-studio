@@ -42,6 +42,38 @@ const ProDetail = () => {
     return [userId1, userId2].sort((a, b) => a - b).join('_');
   };
 
+  // 🔥 دالة إرسال الإشعارات
+  const sendNotification = async (receiverId: number, notificationData: {
+    type: string;
+    title: string;
+    message: string;
+    sender_id: number;
+    sender_name: string;
+    sender_image: string;
+    data?: any;
+  }) => {
+    try {
+      if (!user) return;
+
+      const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const notificationRef = ref(db, `notifications/${receiverId}/${notificationId}`);
+      
+      const fullNotificationData = {
+        ...notificationData,
+        id: notificationId,
+        timestamp: Date.now(),
+        read: false,
+        sender_type: 'user'
+      };
+
+      await set(notificationRef, fullNotificationData);
+      console.log("✅ Notification sent successfully to user:", receiverId);
+      
+    } catch (error) {
+      console.error("❌ Error sending notification:", error);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!product || !user || !messageBody.trim()) {
       alert("Please write a message first.");
@@ -64,7 +96,7 @@ const ProDetail = () => {
         sender_type: 'user',
         timestamp: Date.now(),
         created_at: new Date().toISOString(),
-        product_info: { // معلومات إضافية عن المنتج
+        product_info: {
           product_id: product.id,
           product_name: product.name,
           product_price: product.price,
@@ -78,7 +110,7 @@ const ProDetail = () => {
       await api.post("/chat/send", {
         body: messageBody,
         receiver_id: receiverId,
-        product_id: product.id // إضافة product_id علشان نعرف إن الرسالة متعلقة بمنتج
+        product_id: product.id
       });
       console.log("✅ Message sent to Laravel API");
 
@@ -88,6 +120,39 @@ const ProDetail = () => {
       
       await set(newMessageRef, messageData);
       console.log("✅ Message sent to Firebase");
+
+      // 🔥 3. إرسال إشعار للبائع
+      await sendNotification(receiverId, {
+        type: 'new_message',
+        title: 'New Message 📩',
+        message: `${user.user_name} sent you a message about your product: ${product.name}`,
+        sender_id: user.id,
+        sender_name: user.user_name,
+        sender_image: user.profile_image,
+        data: {
+          product_id: product.id,
+          product_name: product.name,
+          room_id: roomId,
+          message_preview: messageBody.substring(0, 100) + '...'
+        }
+      });
+
+      // 🔥 4. إرسال إشعار push notification (إذا محتاج)
+      try {
+        await api.post("/send-notification", {
+          user_id: receiverId,
+          title: "New Message 📩",
+          message: `${user.user_name} sent you a message about ${product.name}`,
+          data: {
+            type: 'new_message',
+            product_id: product.id,
+            room_id: roomId
+          }
+        });
+        console.log("✅ Push notification sent");
+      } catch (notifError) {
+        console.log("ℹ️ Push notification service not available");
+      }
 
       // نجاح الإرسال
       alert("Message sent successfully!");
@@ -128,6 +193,21 @@ const ProDetail = () => {
           const messagesRef = ref(db, `chats/${roomId}/messages`);
           const newMessageRef = push(messagesRef);
           await set(newMessageRef, messageData);
+          
+          // 🔥 إرسال إشعار حتى لو فشل الـ API
+          await sendNotification(receiverId, {
+            type: 'new_message',
+            title: 'New Message 📩',
+            message: `${user.user_name} sent you a message about your product: ${product.name}`,
+            sender_id: user.id,
+            sender_name: user.user_name,
+            sender_image: user.profile_image,
+            data: {
+              product_id: product.id,
+              product_name: product.name,
+              room_id: roomId
+            }
+          });
           
           alert("Message sent via Firebase!");
           setIsModalOpen(false);
@@ -257,13 +337,7 @@ const ProDetail = () => {
               {sending ? "Sending..." : "Message Seller"}
             </Button>
             
-            <Button
-              onClick={handleGoToChat}
-              variant="outline"
-              className="w-full"
-            >
-              Open Chat Page
-            </Button>
+          
           </div>
         </div>
       </div>

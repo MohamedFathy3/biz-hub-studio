@@ -147,7 +147,7 @@ export default function PendingRequests() {
           const userDataPromise = (async () => {
             try {
               const otherUserId = request.user1_id === currentUser.id ? request.user2_id : request.user1_id;
-              const response = await api.get(`/user/${otherUserId}`);
+              const response = await api.get(`/my-friends/`);
               
               if (response.data.data) {
                 return {

@@ -544,7 +544,6 @@ export const PostCard = ({
             <div className="flex items-center gap-4">
               <span>{likesCount} likes</span>
               <span>{realCommentsCount} comments</span>
-              <span>{shares} shares</span>
             </div>
             {is_ad_request && (
               <span className="text-[#039fb3] font-medium">Sponsored</span>
