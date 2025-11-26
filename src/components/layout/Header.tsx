@@ -51,7 +51,7 @@ export const Header = () => {
   const mobileMenuItems = [
     { href: "/", icon: Home, label: "Home" },
     { href: "/User", icon: Users, label: "Friends" },
-    // { href: "/PendingRequests", icon: UserPlus, label: "Pending Requests" },
+    { href: "/PendingRequests", icon: UserPlus, label: "Requests and Notifications" },
     { href: "/messages", icon: MessageCircle, label: "Messages" },
     { href: "/stories", icon: BookOpen, label: "Explore Stories" },
     { href: "/store", icon: Store, label: "Store" },
@@ -349,7 +349,7 @@ const acceptFriendRequest = async (senderId: number) => {
             {[
               { href: "/", icon: Home, label: "Home" },
               { href: "/User", icon: Users, label: "Friends" },
-              // { href: "/PendingRequests", icon: Users, label: "Pending Requests" },
+              { href: "/PendingRequests", icon: Users, label: "Requests and Notifications" },
               { href: "/messages", icon: MessageCircle, label: "Messages" },
             ].map((item) => (
               <NavLink
@@ -534,8 +534,8 @@ const acceptFriendRequest = async (senderId: number) => {
               transition={{ duration: 0.2, type: "spring", stiffness: 500, damping: 30 }}
               className={cn(
                 "fixed bg-white rounded-2xl shadow-xl border border-gray-200 z-50 overflow-hidden",
-                "w-[95vw] max-w-md mx-auto",
-                "left-1/2 transform -translate-x-1/2",
+                "w-[70vw] max-w-md mx-auto",
+                "left-1/4 transform -translate-x-1/2",
                 "top-20",
                 "lg:top-16 lg:right-6 lg:left-auto lg:transform-none lg:w-96"
               )}

@@ -13,7 +13,10 @@ import {
   Paperclip, 
   ImageIcon,
   FileText,
-  MessageCircle 
+  MessageCircle,
+  Smile,
+  ArrowLeft,
+  Menu
 } from "lucide-react";
 import api from "@/lib/api";
 import { AuthContext } from "@/Context/AuthContext";
@@ -47,6 +50,7 @@ type Message = {
   file_name?: string;
   file_size?: number;
   product_info?: any;
+  is_read?: boolean;
 };
 
 export default function Messages() {
@@ -65,9 +69,43 @@ export default function Messages() {
   const [uploading, setUploading] = useState(false);
   const [urlUserId, setUrlUserId] = useState<number | null>(null);
   const [urlUserData, setUrlUserData] = useState<UserShort | null>(null);
+  const [showEmojis, setShowEmojis] = useState(false);
+  
+  // 🔥 الحاجات الجديدة علشان الموبايل
+  const [isMobile, setIsMobile] = useState(false);
+  const [showChatList, setShowChatList] = useState(true);
+  const [showChatView, setShowChatView] = useState(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // اللون الجديد اللي طلبته
+  const primaryColor = "#039fb3";
+  const primaryLight = "#e6f7f9";
+  const primaryDark = "#028a9c";
+
+  // Emojis للرسائل السريعة
+  const quickEmojis = ['😊', '👍', '❤️', '😂', '😍', '🙏', '👏', '🔥', '🎉', '🤔'];
+
+  // 🔥 نحدد إذا الجهاز موبايل ولا لا
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) {
+        setShowChatList(true);
+        setShowChatView(false);
+      } else {
+        setShowChatList(true);
+        setShowChatView(true);
+      }
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // جلب الـ user_id من الـ URL
   useEffect(() => {
@@ -87,6 +125,25 @@ export default function Messages() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // 🔥 دالة علشان نفتح الشات في الموبايل
+  const openChat = (conversation: Conversation) => {
+    handleSelectConversation(conversation);
+    if (isMobile) {
+      setShowChatList(false);
+      setShowChatView(true);
+    }
+  };
+
+  // 🔥 دالة علشان نرجع لقائمة المحادثات في الموبايل
+  const backToChatList = () => {
+    if (isMobile) {
+      setShowChatList(true);
+      setShowChatView(false);
+      setSelectedUser(null);
+      setSelectedConversation(null);
+    }
+  };
 
   // دالة مساعدة علشان تعمل room ID فريد
   const generateRoomId = (userId1: number, userId2: number) => {
@@ -117,85 +174,40 @@ export default function Messages() {
     }
   };
 
-  // جلب قائمة المحادثات
-// جلب قائمة المحادثات
-const fetchConversations = async () => {
-  try {
-    setLoading(true);
-    setError(null);
-    
-    const res = await api.get("/conversations");
-    console.log("🔍 Conversations API Raw Response:", res);
-    console.log("🔍 Conversations API Data:", res.data);
-    
-    let conversationsData: Conversation[] = [];
-    
-    if (Array.isArray(res.data)) {
-      // الحالة الأولى: البيانات جاية كـ array مباشرة
-      conversationsData = res.data.map((conv: any) => ({
-        user: {
-          id: conv.user?.id || conv.id,
-          user_name: conv.user?.user_name || conv.user_name,
-          profile_image: conv.user?.profile_image || conv.profile_image,
-          user_type: conv.user?.user_type || conv.user_type
-        },
-        lastMessage: conv.lastMessage,
-        unreadCount: conv.unreadCount || 0
-      }));
-    } else if (res.data && typeof res.data === 'object') {
-      console.log("📁 Data is Object, checking structure...");
+  // 🔥 جلب قائمة المحادثات - الإصدار المعدل
+  const fetchConversations = async () => {
+    try {
+      setLoading(true);
+      setError(null);
       
-      // الحالة الثانية: البيانات جاية كـ object
-      if (res.data.data) {
-        console.log("📁 Data has data property:", res.data.data);
+      const res = await api.get("/conversations");
+      console.log("🔍 Conversations API Raw Response:", res);
+      console.log("🔍 Conversations API Data:", res.data);
+      
+      let conversationsData: Conversation[] = [];
+      
+      // الحالة الأولى: البيانات جاية كـ array مباشرة
+      if (Array.isArray(res.data)) {
+        console.log("📁 Data is direct array");
+        conversationsData = res.data.map((conv: any) => ({
+          user: {
+            id: conv.user?.id || conv.id,
+            user_name: conv.user?.user_name || conv.user_name,
+            profile_image: conv.user?.profile_image || conv.profile_image,
+            user_type: conv.user?.user_type || conv.user_type
+          },
+          lastMessage: conv.lastMessage,
+          unreadCount: conv.unreadCount || 0
+        }));
+      } 
+      // الحالة الثانية: البيانات جاية كـ object مع data property
+      else if (res.data && typeof res.data === 'object') {
+        console.log("📁 Data is object, checking structure...");
         
-        if (Array.isArray(res.data.data)) {
-          // data property هي array
-          conversationsData = res.data.data.map((conv: any) => ({
-            user: {
-              id: conv.user?.id || conv.id,
-              user_name: conv.user?.user_name || conv.user_name,
-              profile_image: conv.user?.profile_image || conv.profile_image,
-              user_type: conv.user?.user_type || conv.user_type
-            },
-            lastMessage: conv.lastMessage,
-            unreadCount: conv.unreadCount || 0
-          }));
-        } else if (typeof res.data.data === 'object') {
-          console.log("📁 Single conversation object structure:", res.data.data);
+        if (res.data.data) {
+          console.log("📁 Data has data property:", res.data.data);
           
-          // إذا البيانات فيها أرقام كمفاتيح (مثل: {0: {...}, 6: {...}})
-          if (Object.keys(res.data.data).every(key => !isNaN(Number(key)))) {
-            console.log("📁 Object with numeric keys - converting to array");
-            conversationsData = Object.values(res.data.data).map((conv: any) => ({
-              user: {
-                id: conv.user?.id || conv.id,
-                user_name: conv.user?.user_name || conv.user_name,
-                profile_image: conv.user?.profile_image || conv.profile_image,
-                user_type: conv.user?.user_type || conv.user_type
-              },
-              lastMessage: conv.lastMessage,
-              unreadCount: conv.unreadCount || 0
-            }));
-          } else {
-            // بيانات مستخدم واحد
-            const userData = res.data.data;
-            conversationsData = [{
-              user: {
-                id: userData.id,
-                user_name: userData.user_name,
-                profile_image: userData.profile_image,
-                user_type: userData.user_type
-              },
-              lastMessage: null,
-              unreadCount: 0
-            }];
-          }
-        }
-      } else if (res.data.result === "Success") {
-        // إذا في structure تانية
-        console.log("📁 Success result structure");
-        if (res.data.data && typeof res.data.data === 'object') {
+          // إذا data هي array
           if (Array.isArray(res.data.data)) {
             conversationsData = res.data.data.map((conv: any) => ({
               user: {
@@ -207,45 +219,79 @@ const fetchConversations = async () => {
               lastMessage: conv.lastMessage,
               unreadCount: conv.unreadCount || 0
             }));
-          } else {
-            // بيانات مستخدم واحد
-            const userData = res.data.data;
-            conversationsData = [{
-              user: {
-                id: userData.id,
-                user_name: userData.user_name,
-                profile_image: userData.profile_image,
-                user_type: userData.user_type
-              },
-              lastMessage: null,
-              unreadCount: 0
-            }];
+          } 
+          // إذا data هي object بمفاتيح رقمية
+          else if (typeof res.data.data === 'object') {
+            const dataObj = res.data.data;
+            
+            // نتحقق إذا فيه مفاتيح رقمية (مثل: {0: {...}, 1: {...}})
+            const keys = Object.keys(dataObj);
+            const hasNumericKeys = keys.every(key => !isNaN(Number(key)));
+            
+            if (hasNumericKeys && keys.length > 0) {
+              console.log("📁 Object with numeric keys - converting to array");
+              conversationsData = Object.values(dataObj).map((conv: any) => ({
+                user: {
+                  id: conv.user?.id || conv.id,
+                  user_name: conv.user?.user_name || conv.user_name,
+                  profile_image: conv.user?.profile_image || conv.profile_image,
+                  user_type: conv.user?.user_type || conv.user_type
+                },
+                lastMessage: conv.lastMessage,
+                unreadCount: conv.unreadCount || 0
+              }));
+            } else {
+              // بيانات مستخدم واحد فقط
+              console.log("📁 Single conversation object");
+              const userData = dataObj;
+              conversationsData = [{
+                user: {
+                  id: userData.id,
+                  user_name: userData.user_name,
+                  profile_image: userData.profile_image,
+                  user_type: userData.user_type
+                },
+                lastMessage: null,
+                unreadCount: 0
+              }];
+            }
           }
         }
       }
+      
+      console.log("✅ Final Conversations Data:", conversationsData);
+      
+      // 🔥 إصلاح: إزالة المحادثات المكررة
+      const uniqueConversations = conversationsData.filter((conv, index, self) => 
+        index === self.findIndex(c => 
+          c.user && c.user.id && c.user.id === conv.user?.id
+        )
+      );
+      
+      console.log("✅ Unique Conversations:", uniqueConversations);
+      
+      // نفلتر المحادثات اللي فيها بيانات user صحيحة
+      const validConversations = uniqueConversations.filter(conv => 
+        conv.user && conv.user.id && conv.user.user_name
+      );
+      
+      console.log("✅ Valid Conversations:", validConversations);
+      
+      setConversations(validConversations);
+      
+      // بعد ما نجيب المحادثات، نشوف لو في user_id في الـ URL
+      if (urlUserId && !selectedUser) {
+        await handleUrlUserId(validConversations);
+      }
+      
+    } catch (error: any) {
+      console.error("❌ Error fetching conversations:", error);
+      setError("Failed to load conversations");
+    } finally {
+      setLoading(false);
     }
-    
-    console.log("✅ Final Conversations Data:", conversationsData);
-    
-    // نفلتر المحادثات اللي فيها بيانات user صحيحة
-    const validConversations = conversationsData.filter(conv => 
-      conv.user && conv.user.id && conv.user.user_name
-    );
-    
-    setConversations(validConversations);
-    
-    // بعد ما نجيب المحادثات، نشوف لو في user_id في الـ URL
-    if (urlUserId && !selectedUser) {
-      await handleUrlUserId(validConversations);
-    }
-    
-  } catch (error: any) {
-    console.error("❌ Error fetching conversations:", error);
-    setError("Failed to load conversations");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   // معالجة الـ user_id من الـ URL
   const handleUrlUserId = async (conversationsData: Conversation[]) => {
     if (!urlUserId || !user) {
@@ -264,7 +310,7 @@ const fetchConversations = async () => {
     if (existingConversation) {
       console.log("✅ Found existing conversation:", existingConversation);
       // لو فيه محادثة موجودة، نفتحها
-      handleSelectConversation(existingConversation);
+      openChat(existingConversation);
     } else {
       console.log("❌ No existing conversation found, creating new one");
       // لو مفيش محادثة، نجيب بيانات المستخدم ونعمل محادثة جديدة
@@ -288,6 +334,12 @@ const fetchConversations = async () => {
         
         // نبدأ الـ realtime listener
         setupRealtimeListener(userData.id);
+        
+        // نفتح الشات في الموبايل
+        if (isMobile) {
+          setShowChatList(false);
+          setShowChatView(true);
+        }
         
         // نركز على الـ input
         setTimeout(() => {
@@ -326,7 +378,7 @@ const fetchConversations = async () => {
       
       if (!snapshot.exists()) {
         console.log("📭 No messages in Firebase yet");
-        setMessages([]);
+        // نظل الرسايل من الـ API موجودة
         return;
       }
       
@@ -337,7 +389,7 @@ const fetchConversations = async () => {
         const messageData = childSnapshot.val();
         const messageId = messageData.id || childSnapshot.key;
         
-        console.log("📝 Processing message:", messageData);
+        console.log("📝 Processing Firebase message:", messageData);
         
         // نتأكد من وجود id و timestamp
         if (messageId && !processedIds.has(messageId)) {
@@ -360,33 +412,22 @@ const fetchConversations = async () => {
             file_url: messageData.file_url,
             file_name: messageData.file_name,
             file_size: messageData.file_size,
-            product_info: messageData.product_info
+            product_info: messageData.product_info,
+            is_read: messageData.is_read || false
           });
         }
       });
 
-      const sortedMessages = firebaseMessages.sort((a, b) => {
+      const sortedFirebaseMessages = firebaseMessages.sort((a, b) => {
         const timeA = a.timestamp || new Date(a.created_at).getTime();
         const timeB = b.timestamp || new Date(b.created_at).getTime();
         return timeA - timeB;
       });
 
-      console.log("✅ Sorted Firebase messages:", sortedMessages);
+      console.log("✅ Sorted Firebase messages:", sortedFirebaseMessages);
 
-      setMessages(prevMessages => {
-        const allMessages = [...prevMessages, ...sortedMessages];
-        const uniqueMessages = allMessages.filter((msg, index, self) => 
-          index === self.findIndex(m => m.id === msg.id)
-        );
-        const finalMessages = uniqueMessages.sort((a, b) => {
-          const timeA = a.timestamp || new Date(a.created_at).getTime();
-          const timeB = b.timestamp || new Date(b.created_at).getTime();
-          return timeA - timeB;
-        });
-        
-        console.log("✅ Final messages after merge:", finalMessages);
-        return finalMessages;
-      });
+      // 🔥 إصلاح: نستخدم Firebase messages كـ source رئيسي
+      setMessages(sortedFirebaseMessages);
 
     }, (error) => {
       console.error("❌ Firebase realtime listener error:", error);
@@ -403,39 +444,40 @@ const fetchConversations = async () => {
       }
     });
   };
-const sendNotification = async (receiverId: number, notificationData: {
-  type: string;
-  title: string;
-  message: string;
-  sender_id: number;
-  sender_name: string;
-  sender_image: string;
-  data?: any;
-}) => {
-  try {
-    if (!user) {
-      console.error("❌ Cannot send notification - user not found");
-      return;
+
+  const sendNotification = async (receiverId: number, notificationData: {
+    type: string;
+    title: string;
+    message: string;
+    sender_id: number;
+    sender_name: string;
+    sender_image: string;
+    data?: any;
+  }) => {
+    try {
+      if (!user) {
+        console.error("❌ Cannot send notification - user not found");
+        return;
+      }
+
+      const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const notificationRef = ref(db, `notifications/${receiverId}/${notificationId}`);
+      
+      const fullNotificationData = {
+        ...notificationData,
+        id: notificationId,
+        timestamp: Date.now(),
+        read: false
+      };
+
+      console.log("📨 Sending notification:", fullNotificationData);
+      await set(notificationRef, fullNotificationData);
+      
+      console.log(`✅ Notification sent to user ${receiverId}: ${notificationData.type}`);
+    } catch (error) {
+      console.error("❌ Error sending notification:", error);
     }
-
-    const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const notificationRef = ref(db, `notifications/${receiverId}/${notificationId}`);
-    
-    const fullNotificationData = {
-      ...notificationData,
-      id: notificationId,
-      timestamp: Date.now(),
-      read: false
-    };
-
-    console.log("📨 Sending notification:", fullNotificationData);
-    await set(notificationRef, fullNotificationData);
-    
-    console.log(`✅ Notification sent to user ${receiverId}: ${notificationData.type}`);
-  } catch (error) {
-    console.error("❌ Error sending notification:", error);
-  }
-};
+  };
 
   // إرسال typing indicator
   const sendTypingIndicator = (isTyping: boolean) => {
@@ -454,46 +496,13 @@ const sendNotification = async (receiverId: number, notificationData: {
     try {
       setLoading(true);
       setError(null);
-      console.log("🔄 Fetching messages for receiver:", receiverId);
-
-      const res = await api.get("/chat/messages", {
-        params: { receiver_id: receiverId },
-      });
+      console.log("🔄 Setting up Firebase listener for receiver:", receiverId);
       
-      console.log("✅ Messages API Response:", res.data);
-      
-      let messagesData: Message[] = [];
-      
-      if (Array.isArray(res.data)) {
-        messagesData = res.data;
-      } else if (Array.isArray(res.data.data)) {
-        messagesData = res.data.data;
-      } else if (res.data && typeof res.data === 'object') {
-        if (res.data.error) {
-          messagesData = [];
-        } else {
-          messagesData = Object.values(res.data);
-        }
-      }
-      
-      console.log("🔍 Raw Messages Data:", messagesData);
-      
-      // نتأكد من كل message يكون فيه id
-      const validMessages = messagesData.filter(msg => 
-        msg && msg.id && msg.created_at
-      ).map(msg => ({
-        ...msg,
-        id: msg.id || `api_${Date.now()}_${Math.random()}`,
-        timestamp: msg.timestamp || new Date(msg.created_at).getTime()
-      }));
-      
-      console.log("✅ Valid Messages:", validMessages);
-      setMessages(validMessages);
+      // نستخدم Firebase فقط علشان نتجنب التكرار
       setupRealtimeListener(receiverId);
       
     } catch (error: any) {
-      console.error("❌ Error fetching messages:", error);
-      console.error("❌ Error details:", error.response?.data);
+      console.error("❌ Error setting up messages:", error);
       setError("Failed to load messages");
     } finally {
       setLoading(false);
@@ -501,63 +510,110 @@ const sendNotification = async (receiverId: number, notificationData: {
   };
 
   // إرسال رسالة نصية
- const sendMessage = async () => {
-  if (!newMessage.trim() || !selectedUser || !user) return;
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedUser || !user) return;
 
-  try {
-    setError(null);
+    try {
+      setError(null);
 
-    const roomId = generateRoomId(user.id, selectedUser.id);
-    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    const messageData = {
-      id: messageId,
-      body: newMessage,
-      sender_id: user.id,
-      receiver_id: selectedUser.id,
-      sender_name: user.user_name,
-      sender_type: 'user',
-      timestamp: Date.now(),
-      created_at: new Date().toISOString(),
-      type: 'text'
-    };
+      const roomId = generateRoomId(user.id, selectedUser.id);
+      const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const messageData = {
+        id: messageId,
+        body: newMessage,
+        sender_id: user.id,
+        receiver_id: selectedUser.id,
+        sender_name: user.user_name,
+        sender_type: 'user',
+        timestamp: Date.now(),
+        created_at: new Date().toISOString(),
+        type: 'text',
+        is_read: false
+      };
 
-    // إرسال للـ Laravel API
-    await api.post("/chat/send", {
-      body: newMessage,
-      receiver_id: selectedUser.id,
-    });
+      // إرسال للـ Laravel API
+      await api.post("/chat/send", {
+        body: newMessage,
+        receiver_id: selectedUser.id,
+      });
 
-    // إرسال للـ Firebase
-    const messagesRef = ref(db, `chats/${roomId}/messages`);
-    const newMessageRef = push(messagesRef);
-    await set(newMessageRef, messageData);
+      // إرسال للـ Firebase
+      const messagesRef = ref(db, `chats/${roomId}/messages`);
+      const newMessageRef = push(messagesRef);
+      await set(newMessageRef, messageData);
 
-    // 🔥 إرسال إشعار للمستقبل
-    await sendNotification(selectedUser.id, {
-      type: 'new_message',
-      title: 'New Message',
-      message: `New message from ${user.user_name}: ${newMessage}`,
-      sender_id: user.id,
-      sender_name: user.user_name,
-      sender_image: user.profile_image,
-      data: {
-        message_id: messageId,
-        room_id: roomId
-      }
-    });
+      // 🔥 إرسال إشعار للمستقبل
+      await sendNotification(selectedUser.id, {
+        type: 'new_message',
+        title: 'New Message',
+        message: `New message from ${user.user_name}: ${newMessage}`,
+        sender_id: user.id,
+        sender_name: user.user_name,
+        sender_image: user.profile_image,
+        data: {
+          message_id: messageId,
+          room_id: roomId
+        }
+      });
 
-    setNewMessage("");
-    sendTypingIndicator(false);
-    
-    // نحدث قائمة المحادثات
-    fetchConversations();
-    
-  } catch (error: any) {
-    console.error("❌ Error sending message:", error);
-    setError("Failed to send message");
-  }
-};
+      setNewMessage("");
+      sendTypingIndicator(false);
+      
+      // نحدث قائمة المحادثات
+      fetchConversations();
+      
+    } catch (error: any) {
+      console.error("❌ Error sending message:", error);
+      setError("Failed to send message");
+    }
+  };
+
+  // إرسال إيموجي
+  const sendEmoji = async (emoji: string) => {
+    if (!selectedUser || !user) return;
+
+    try {
+      setError(null);
+
+      const roomId = generateRoomId(user.id, selectedUser.id);
+      const messageId = `emoji_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const messageData = {
+        id: messageId,
+        body: emoji,
+        sender_id: user.id,
+        receiver_id: selectedUser.id,
+        sender_name: user.user_name,
+        sender_type: 'user',
+        timestamp: Date.now(),
+        created_at: new Date().toISOString(),
+        type: 'text',
+        is_read: false
+      };
+
+      // إرسال للـ Laravel API
+      await api.post("/chat/send", {
+        body: emoji,
+        receiver_id: selectedUser.id,
+      });
+
+      // إرسال للـ Firebase
+      const messagesRef = ref(db, `chats/${roomId}/messages`);
+      const newMessageRef = push(messagesRef);
+      await set(newMessageRef, messageData);
+
+      setShowEmojis(false);
+      
+      // نحدث قائمة المحادثات
+      fetchConversations();
+      
+    } catch (error: any) {
+      console.error("❌ Error sending emoji:", error);
+      setError("Failed to send emoji");
+    }
+  };
+
   // رفع ملف أو صورة
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -612,7 +668,8 @@ const sendNotification = async (receiverId: number, notificationData: {
         type: file.type.startsWith('image/') ? 'image' : 'file',
         file_url: fileData.file_url,
         file_name: fileData.file_name,
-        file_size: fileData.file_size
+        file_size: fileData.file_size,
+        is_read: false
       };
 
       console.log("📤 Sending file message:", messageData);
@@ -660,22 +717,22 @@ const sendNotification = async (receiverId: number, notificationData: {
   };
 
   // عند اختيار محادثة
-const handleSelectConversation = (conversation: Conversation) => {
-  console.log("🔍 Selected Conversation:", conversation);
-  
-  // نتحقق من بيانات الـ user
-  if (!conversation.user || !conversation.user.id || !conversation.user.user_name) {
-    console.error("❌ Cannot select conversation - user data is incomplete:", conversation);
-    return;
-  }
-  
-  setSelectedConversation(conversation);
-  setSelectedUser(conversation.user);
-  setUrlUserData(null); // نظف بيانات الـ URL user
-  
-  console.log("✅ Fetching messages for user:", conversation.user.id);
-  fetchMessages(conversation.user.id);
-};
+  const handleSelectConversation = (conversation: Conversation) => {
+    console.log("🔍 Selected Conversation:", conversation);
+    
+    // نتحقق من بيانات الـ user
+    if (!conversation.user || !conversation.user.id || !conversation.user.user_name) {
+      console.error("❌ Cannot select conversation - user data is incomplete:", conversation);
+      return;
+    }
+    
+    setSelectedConversation(conversation);
+    setSelectedUser(conversation.user);
+    setUrlUserData(null); // نظف بيانات الـ URL user
+    
+    console.log("✅ Fetching messages for user:", conversation.user.id);
+    fetchMessages(conversation.user.id);
+  };
 
   // تنظيف الـ listeners
   useEffect(() => {
@@ -752,9 +809,9 @@ const handleSelectConversation = (conversation: Conversation) => {
 
   return (
     <MainLayout>
-      <div className="max-w-7xl mx-auto p-4 h-screen flex flex-col">
+      <div className="h-screen flex bg-white overflow-hidden">
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+          <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg m-4 max-w-md">
             {error}
           </div>
         )}
@@ -768,317 +825,371 @@ const handleSelectConversation = (conversation: Conversation) => {
           className="hidden"
         />
         
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1">
-          {/* Conversations List */}
-          <Card className="lg:col-span-1 glass shadow-glass border-glass-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center justify-between text-lg">
-                <span>Messages</span>
-                <div className="flex gap-1">
-                  <Button variant="ghost" size="sm" onClick={fetchConversations}>
-                    <MoreHorizontal className="w-4 h-4" />
+        {/* 🔥 قائمة المحادثات - تظهر في الموبايل لما يكون الشات مقفول */}
+        {(showChatList || !isMobile) && (
+          <div className={`${isMobile ? 'w-full' : 'w-96'} border-r border-gray-200 bg-white flex flex-col h-full`}>
+            {/* Header */}
+            <div className="p-4 border-b border-gray-200" style={{ backgroundColor: primaryColor }}>
+              <div className="flex items-center justify-between">
+                <h1 className="text-xl font-bold text-white">Messages</h1>
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" className="rounded-full text-white hover:bg-white/20">
+                    <Search className="w-5 h-5" />
+                  </Button>
+                  <Button variant="ghost" size="sm" className="rounded-full text-white hover:bg-white/20">
+                    <Menu className="w-5 h-5" />
                   </Button>
                 </div>
-              </CardTitle>
-             
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="space-y-1 max-h-[calc(100vh-200px)] overflow-y-auto">
-                {!conversations || conversations.length === 0 ? (
-                  <div className="p-6 text-center text-muted-foreground">
-                    <div className="w-16 h-16 mx-auto mb-3 bg-gray-100 rounded-full flex items-center justify-center">
-                      <MessageCircle className="w-8 h-8 text-gray-400" />
-                    </div>
-                    <p>No conversations yet</p>
-                    <p className="text-sm">Start a new conversation</p>
+              </div>
+            </div>
+
+            {/* Conversations List */}
+            <div className="flex-1 overflow-y-auto">
+              {!conversations || conversations.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <div className="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                    <MessageCircle className="w-10 h-10 text-gray-400" />
                   </div>
-                ) : (
-                  conversations.map((conversation, index) => (
+                  <p className="font-medium mb-2">No conversations yet</p>
+                  <p className="text-sm">Start a new conversation with a doctor</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {conversations.map((conversation, index) => (
                     <div
                       key={conversation.user?.id || `conv_${index}`}
-                      onClick={() => handleSelectConversation(conversation)}
-                      className={`flex items-center gap-3 p-3 hover:bg-accent cursor-pointer transition-all duration-200 group ${
+                      onClick={() => openChat(conversation)}
+                      className={`flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
                         selectedConversation?.user?.id === conversation.user?.id 
-                          ? 'bg-blue-50 border-r-2 border-blue-500' 
+                          ? 'bg-blue-50' 
                           : ''
                       }`}
                     >
-                      <div className="relative">
-                        <Avatar className="border-2 border-white shadow-sm">
+                      <div className="relative flex-shrink-0">
+                        <Avatar className="w-12 h-12 border-2 border-white">
                           <AvatarImage src={conversation.user?.profile_image} />
-                          <AvatarFallback className="bg-gradient-to-br from-blue-100 to-purple-100">
+                          <AvatarFallback className="bg-blue-100 text-blue-800">
                             {conversation.user?.user_name?.charAt(0) || 'D'}
                           </AvatarFallback>
                         </Avatar>
                         <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                       </div>
+                      
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="font-semibold text-sm truncate">
+                        <div className="flex items-center justify-between mb-1">
+                          <h3 className="font-semibold text-gray-900 truncate">
                             Dr. {conversation.user?.user_name}
-                          </p>
-                          <span className="text-xs text-muted-foreground">
+                          </h3>
+                          <span className="text-xs text-gray-500 whitespace-nowrap">
                             {conversation.lastMessage?.created_at 
                               ? new Date(conversation.lastMessage.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                               : ''
                             }
                           </span>
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">
+                        
+                        <p className="text-sm text-gray-600 truncate">
                           {conversation.lastMessage?.body || 'Start a conversation'}
                         </p>
                       </div>
+
                       {conversation.unreadCount > 0 && (
-                        <Badge className="bg-blue-500 text-white text-xs min-w-[20px] h-5 flex items-center justify-center">
-                          {conversation.unreadCount}
-                        </Badge>
+                        <div className="flex-shrink-0">
+                          <div className="bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                            {conversation.unreadCount}
+                          </div>
+                        </div>
                       )}
                     </div>
-                  ))
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 🔥 نافذة الشات - تظهر في الموبايل لما نفتح محادثة */}
+        {(showChatView || !isMobile) && displayUser ? (
+          <div className={`${isMobile ? 'w-full' : 'flex-1'} bg-gray-50 flex flex-col h-full`}>
+            {/* Chat Header */}
+            <div className="p-4 border-b border-gray-200 bg-white shadow-sm">
+              <div className="flex items-center gap-3">
+                {isMobile && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="rounded-full p-2 text-gray-600 hover:bg-gray-100"
+                    onClick={backToChatList}
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </Button>
                 )}
+                
+                <Avatar className="w-10 h-10 border-2 border-white shadow-sm">
+                  <AvatarImage src={displayUser.profile_image} />
+                  <AvatarFallback className="bg-blue-100 text-blue-800">
+                    {displayUser.user_name?.charAt(0)}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <div className="flex-1">
+                  <h2 className="font-semibold text-gray-900 text-lg">Dr. {displayUser.user_name}</h2>
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    <p className="text-sm text-gray-600">
+                      {isTyping ? 'Typing...' : 'Online'}
+                    </p>
+                  </div>
+                </div>
+                
+                <Button variant="ghost" size="sm" className="rounded-full text-gray-600 hover:bg-gray-100">
+                  <MoreHorizontal className="w-5 h-5" />
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Chat Area */}
-          <Card className="lg:col-span-3 glass shadow-glass border-glass-border flex flex-col">
-            {displayUser ? (
-              <>
-                {/* Header */}
-                <CardHeader className="border-b border-glass-border pb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="border-2 border-white shadow-md">
-                        <AvatarImage src={displayUser.profile_image} />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-100 to-purple-100">
-                          Dr. {displayUser.user_name?.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-semibold text-lg">Dr. {displayUser.user_name}</h3>
-                        <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                          <p className="text-sm text-muted-foreground">
-                            {isTyping ? 'Typing...' : 'Online • Available for consultation'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                    {urlUserData && (
-                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700">
-                        New Conversation
-                      </Badge>
-                    )}
+            {/* Messages Area */}
+            <div className="flex-1 overflow-y-auto bg-gradient-to-b from-white to-gray-50 p-4">
+              {messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                  <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-4 shadow-sm">
+                    <MessageCircle className="w-12 h-12 text-gray-300" />
                   </div>
-                </CardHeader>
-
-                {/* Messages Area */}
-                <CardContent className="flex-1 flex flex-col p-0">
-                  {/* Quick Replies */}
-                  <div className="p-4 border-b">
-                    <div className="flex flex-wrap gap-2">
-                      {(userType === 'doctor' ? doctorQuickReplies : patientQuickReplies)
-                        .map((reply, index) => (
-                        <Button
-                          key={index}
-                          variant="outline"
-                          size="sm"
-                          className="rounded-full text-xs bg-white/50 hover:bg-white"
-                          onClick={() => sendQuickReply(reply)}
-                        >
-                          {reply}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Messages */}
-                  <div className="flex-1 p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-400px)]">
-                    {messages.length === 0 ? (
-                      <div className="text-center text-muted-foreground py-12">
-                        <div className="w-20 h-20 mx-auto mb-4 bg-gray-50 rounded-full flex items-center justify-center">
-                          <MessageCircle className="w-10 h-10 text-gray-300" />
-                        </div>
-                        <h3 className="font-semibold text-lg mb-2">
-                          {urlUserData ? "Start a new conversation" : "No messages yet"}
-                        </h3>
-                        <p className="text-sm">
-                          {urlUserData 
-                            ? `Send your first message to Dr. ${displayUser.user_name}`
-                            : `Start the conversation with Dr. ${displayUser.user_name}`
-                          }
-                        </p>
-                      </div>
-                    ) : (
-                      messages.map((msg, index) => {
-                        const isMine = msg.sender?.id === user?.id;
-                        const isProductMessage = msg.product_info;
-                        const isImage = msg.type === 'image';
-                        const isFile = msg.type === 'file';
-                        
-                        return (
-                          <div
-                            key={getMessageKey(msg, index)}
-                            className={`flex ${isMine ? "justify-end" : "justify-start"} group`}
-                          >
-                            <div className={`flex gap-2 max-w-xs lg:max-w-md ${isMine ? "flex-row-reverse" : "flex-row"}`}>
-                              {!isMine && (
-                                <Avatar className="w-8 h-8 mt-1">
-                                  <AvatarImage src={displayUser.profile_image} />
-                                  <AvatarFallback>D</AvatarFallback>
-                                </Avatar>
-                              )}
-                              
-                              <div className="space-y-1">
-                                {isProductMessage && (
-                                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
-                                    <div className="flex gap-3">
-                                      {msg.product_info?.product_image && (
-                                        <img 
-                                          src={msg.product_info.product_image} 
-                                          alt="Product"
-                                          className="w-12 h-12 rounded object-cover"
-                                        />
-                                      )}
-                                      <div className="flex-1">
-                                        <p className="font-semibold text-sm">{msg.product_info?.product_name}</p>
-                                        <p className="text-green-600 font-bold">${msg.product_info?.product_price}</p>
-                                      </div>
-                                    </div>
-                                  </div>
+                  <h3 className="font-semibold text-lg mb-2 text-gray-700">
+                    {urlUserData ? "Start a new conversation" : "No messages yet"}
+                  </h3>
+                  <p className="text-center text-sm max-w-xs">
+                    {urlUserData 
+                      ? `Send your first message to Dr. ${displayUser.user_name}`
+                      : `Say hello to Dr. ${displayUser.user_name} and start your consultation`
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {messages.map((msg, index) => {
+                    const isMine = msg.sender?.id === user?.id;
+                    const isProductMessage = msg.product_info;
+                    const isImage = msg.type === 'image';
+                    const isFile = msg.type === 'file';
+                    
+                    return (
+                      <div
+                        key={getMessageKey(msg, index)}
+                        className={`flex ${isMine ? "justify-end" : "justify-start"}`}
+                      >
+                        <div className={`max-w-xs lg:max-w-md ${isMine ? "" : ""}`}>
+                          {isProductMessage && (
+                            <div className="bg-white border border-gray-200 rounded-lg p-3 mb-2 shadow-sm">
+                              <div className="flex gap-3">
+                                {msg.product_info?.product_image && (
+                                  <img 
+                                    src={msg.product_info.product_image} 
+                                    alt="Product"
+                                    className="w-12 h-12 rounded object-cover"
+                                  />
                                 )}
-
-                                {isImage && msg.file_url && (
-                                  <div className="mb-2">
-                                    <img 
-                                      src={msg.file_url} 
-                                      alt="Shared image"
-                                      className="max-w-full max-h-64 rounded-lg object-cover border border-gray-200"
-                                    />
-                                  </div>
-                                )}
-
-                                {isFile && msg.file_url && (
-                                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-2">
-                                    <div className="flex items-center gap-3">
-                                      <FileText className="w-8 h-8 text-blue-500" />
-                                      <div className="flex-1">
-                                        <p className="font-semibold text-sm truncate">{msg.file_name}</p>
-                                        <p className="text-xs text-gray-500">
-                                          {msg.file_size ? formatFileSize(msg.file_size) : 'Unknown size'}
-                                        </p>
-                                      </div>
-                                      <Button 
-                                        size="sm" 
-                                        variant="outline"
-                                        asChild
-                                      >
-                                        <a href={msg.file_url} download target="_blank" rel="noopener noreferrer">
-                                          Download
-                                        </a>
-                                      </Button>
-                                    </div>
-                                  </div>
-                                )}
-                                
-                                <div
-                                  className={`p-3 rounded-2xl ${
-                                    isMine
-                                      ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-br-md"
-                                      : "bg-white border border-gray-200 rounded-bl-md shadow-sm"
-                                  }`}
-                                >
-                                  <p className="text-sm leading-relaxed">{msg.body}</p>
+                                <div className="flex-1">
+                                  <p className="font-semibold text-sm text-gray-900">{msg.product_info?.product_name}</p>
+                                  <p className="text-green-600 font-bold">${msg.product_info?.product_price}</p>
                                 </div>
-                                
-                                <span className={`text-xs text-muted-foreground block ${isMine ? "text-right" : "text-left"}`}>
-                                  {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                </span>
                               </div>
                             </div>
-                          </div>
-                        );
-                      })
-                    )}
-                    {isTyping && (
-                      <div className="flex justify-start">
-                        <div className="flex gap-2">
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src={displayUser.profile_image} />
-                            <AvatarFallback>D</AvatarFallback>
-                          </Avatar>
-                          <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-md p-3">
-                            <div className="flex gap-1">
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                              <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                          )}
+
+                          {isImage && msg.file_url && (
+                            <div className="mb-2">
+                              <img 
+                                src={msg.file_url} 
+                                alt="Shared image"
+                                className="max-w-full max-h-64 rounded-lg object-cover border border-gray-200 shadow-sm"
+                              />
                             </div>
+                          )}
+
+                          {isFile && msg.file_url && (
+                            <div className="bg-white border border-gray-200 rounded-lg p-3 mb-2 shadow-sm">
+                              <div className="flex items-center gap-3">
+                                <FileText className="w-8 h-8 text-blue-500" />
+                                <div className="flex-1">
+                                  <p className="font-semibold text-sm text-gray-900 truncate">{msg.file_name}</p>
+                                  <p className="text-xs text-gray-500">
+                                    {msg.file_size ? formatFileSize(msg.file_size) : 'Unknown size'}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <div
+                            className={`p-3 rounded-2xl shadow-sm ${
+                              isMine
+                                ? "rounded-br-md text-white"
+                                : "bg-white border border-gray-200 rounded-bl-md"
+                            }`}
+                            style={isMine ? { backgroundColor: primaryColor } : {}}
+                          >
+                            <p className="text-sm leading-relaxed">{msg.body}</p>
+                          </div>
+                          
+                          <div className={`flex items-center gap-2 mt-1 ${isMine ? "justify-end" : "justify-start"}`}>
+                            <span className="text-xs text-gray-500">
+                              {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </span>
+                            
+                            {isMine && (
+                              <div className="flex items-center gap-0.5">
+                                <span className={`text-xs ${msg.is_read ? 'text-blue-300' : 'text-gray-400'}`}>✓</span>
+                                <span className={`text-xs ${msg.is_read ? 'text-blue-300' : 'text-gray-400'}`}>✓</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-
-                  {/* Input Area */}
-                  <div className="border-t border-glass-border p-4 bg-white/50">
-                    <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="rounded-full"
-                        onClick={handleAttachClick}
-                        disabled={uploading}
-                      >
-                        {uploading ? (
-                          <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-                        ) : (
-                          <Paperclip className="w-4 h-4" />
-                        )}
-                      </Button>
-                      <Input
-                        ref={inputRef}
-                        placeholder="Type your message..."
-                        value={newMessage}
-                        onChange={(e) => {
-                          setNewMessage(e.target.value);
-                          sendTypingIndicator(e.target.value.length > 0);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
-                            sendMessage();
-                          }
-                        }}
-                        className="flex-1 rounded-full bg-white"
-                      />
-                      <Button
-                        size="sm"
-                        className="rounded-full gradient-primary text-white shadow-lg hover:shadow-xl transition-all duration-200"
-                        onClick={sendMessage}
-                        disabled={!newMessage.trim() || !selectedUser?.id}
-                      >
-                        <Send className="w-4 h-4" />
-                      </Button>
+                    );
+                  })}
+                  
+                  {isTyping && (
+                    <div className="flex justify-start">
+                      <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-md p-3 shadow-sm">
+                        <div className="flex gap-1">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground p-8">
-                <div className="w-24 h-24 bg-gradient-to-br from-blue-50 to-purple-50 rounded-full flex items-center justify-center mb-6">
-                  <MessageCircle className="w-12 h-12 text-blue-300" />
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
-                <h3 className="font-semibold text-xl mb-2">Welcome to Medical Chat</h3>
-                <p className="text-center max-w-md">
-                  Select a conversation to start messaging with healthcare professionals.
-                  Get medical advice, schedule appointments, and discuss your health concerns.
-                </p>
+              )}
+            </div>
+
+            {/* Quick Replies */}
+            <div className="bg-white border-t border-gray-200 p-3">
+              <div className="flex gap-2 overflow-x-auto pb-2 hide-scrollbar">
+                {(userType === 'doctor' ? doctorQuickReplies : patientQuickReplies)
+                  .map((reply, index) => (
+                  <button
+                    key={index}
+                    className="flex-shrink-0 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-full text-sm transition-colors whitespace-nowrap"
+                    onClick={() => sendQuickReply(reply)}
+                  >
+                    {reply}
+                  </button>
+                ))}
               </div>
-            )}
-          </Card>
-        </div>
+            </div>
+
+            {/* Input Area */}
+            <div className="bg-white border-t border-gray-200 p-4">
+              {/* Emoji Picker */}
+              {showEmojis && (
+                <div className="mb-3 p-3 bg-white border border-gray-200 rounded-lg shadow-lg">
+                  <div className="grid grid-cols-8 gap-1">
+                    {quickEmojis.map((emoji, index) => (
+                      <button
+                        key={index}
+                        className="text-xl p-1 hover:bg-gray-100 rounded transition-colors"
+                        onClick={() => sendEmoji(emoji)}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex gap-2 items-center">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="rounded-full text-gray-600 hover:bg-gray-100"
+                  onClick={handleAttachClick}
+                  disabled={uploading}
+                >
+                  {uploading ? (
+                    <div className="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                  ) : (
+                    <Paperclip className="w-5 h-5" />
+                  )}
+                </Button>
+                
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="rounded-full text-gray-600 hover:bg-gray-100"
+                  onClick={() => setShowEmojis(!showEmojis)}
+                >
+                  <Smile className="w-5 h-5" />
+                </Button>
+                
+                <div className="flex-1 bg-gray-100 rounded-full px-4 py-2">
+                  <Input
+                    ref={inputRef}
+                    placeholder="Type a message..."
+                    value={newMessage}
+                    onChange={(e) => {
+                      setNewMessage(e.target.value);
+                      sendTypingIndicator(e.target.value.length > 0);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        sendMessage();
+                      }
+                    }}
+                    className="border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0"
+                  />
+                </div>
+                
+                <Button
+                  size="sm"
+                  className="rounded-full text-white shadow-lg hover:shadow-xl transition-all"
+                  onClick={sendMessage}
+                  disabled={!newMessage.trim() || !selectedUser?.id}
+                  style={{ 
+                    backgroundColor: primaryColor,
+                    borderColor: primaryColor
+                  }}
+                >
+                  <Send className="w-5 h-5" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // Empty State when no chat is selected on desktop
+          !isMobile && (
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-500 bg-gradient-to-br from-gray-50 to-gray-100">
+              <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-6 shadow-lg">
+                <MessageCircle className="w-16 h-16 text-gray-300" />
+              </div>
+              <h3 className="font-semibold text-2xl mb-3 text-gray-700">Welcome to Medical Chat</h3>
+              <p className="text-center max-w-md text-gray-600 mb-8">
+                Select a conversation to start messaging with healthcare professionals.
+                Get medical advice, schedule appointments, and discuss your health concerns.
+              </p>
+              <div 
+                className="px-6 py-3 rounded-full text-white font-medium shadow-lg"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Start a Conversation
+              </div>
+            </div>
+          )
+        )}
       </div>
+
+      <style jsx>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </MainLayout>
   );
 }

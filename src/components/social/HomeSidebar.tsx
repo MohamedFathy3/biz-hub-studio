@@ -316,7 +316,7 @@ export default function HomeSidebar() {
 
   // 🔥 مشاهدة كل الإشعارات
   const handleViewAllNotifications = () => {
-    navigate('/notifications');
+    navigate('/PendingRequests');
   };
 
   // 🔥 الحصول على أيقونة حسب نوع الإشعار
@@ -493,12 +493,13 @@ export default function HomeSidebar() {
                   variant="ghost" 
                   size="sm" 
                   className="w-full text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50"
-                  onClick={() => setShowNotifications(true)}
+                  onClick={() => handleViewAllNotifications(true)}
                 >
                   Show {notifications.length - 3} more
                 </Button>
               )}
             </>
+            
           )}
         </CardContent>
       </Card>
@@ -583,7 +584,7 @@ export default function HomeSidebar() {
 
       {/* باقي المكونات بدون تغيير */}
       {/* Confirmed Friends */}
-      <Card className="rounded-2xl shadow-sm hover:shadow-md transition p-4">
+      {/* <Card className="rounded-2xl shadow-sm hover:shadow-md transition p-4">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="text-green-500 w-5 h-5" />
@@ -635,7 +636,7 @@ export default function HomeSidebar() {
                   </Button>
                 </div>
               ))}
-{/* 
+
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -643,14 +644,14 @@ export default function HomeSidebar() {
                 onClick={handleViewAllFriends}
               >
                 View All Friends
-              </Button> */}
+              </Button>
             </>
           )}
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Events */}
-      {/* <Card className="rounded-2xl shadow-sm hover:shadow-md transition p-4">
+      <Card className="rounded-2xl shadow-sm hover:shadow-md transition p-4">
         <CardHeader className="flex items-center gap-2 pb-3">
           <Calendar className="text-orange-500 w-5 h-5" />
           <CardTitle className="text-base font-semibold">Medical Events</CardTitle>
@@ -666,7 +667,7 @@ export default function HomeSidebar() {
             </div>
           ))}
         </CardContent>
-      </Card> */}
+      </Card>
 
       {/* Photos */}
       {/* <Card className="rounded-2xl shadow-sm hover:shadow-md transition p-4">

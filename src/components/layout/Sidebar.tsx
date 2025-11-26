@@ -60,7 +60,7 @@ export const Sidebar = () => {
               alt="Dent Studio Logo"
               className={cn(
                 "object-contain transition-all duration-300",
-                isCollapsed ? "w-20 h-10" : "w-40 h-8" // حجم أصغر للوجو
+                isCollapsed ? "w-20 h-10" : "w-40 h-8" //
               )}
             />
           
