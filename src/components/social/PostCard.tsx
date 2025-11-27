@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useContext, useCallback } from "react";
-import { MoreHorizontal, Heart, MessageCircle, Share2, X, ChevronLeft, ChevronRight, BadgeCheck, Star, Copy, ExternalLink } from "lucide-react";
+import { MoreHorizontal, Heart, MessageCircle, Share2, X, ChevronLeft, ChevronRight, BadgeCheck, Star, Copy, ExternalLink, Reply, ThumbsUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -10,9 +10,9 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AuthContext } from "@/Context/AuthContext";
 import toast from "react-hot-toast";
 
-// Firebase imports للـ real-time فقط
+// Firebase imports
 import { db } from '@/lib/firebase';
-import { ref, onValue, off, push, set, update, query, orderByChild, equalTo, remove } from 'firebase/database';
+import { ref, onValue, off, push, set, update, query, orderByChild, equalTo, remove, get } from 'firebase/database';
 
 interface Author {
   id: number;
@@ -30,12 +30,27 @@ interface User {
 }
 
 interface Comment {
-  id: number;
+  id: string; // ✅ تغيير إلى string لضمان التفرد
   post_id: number;
   user: User;
   content: string;
   reaction: string | null;
   created_at: string;
+  likes_count?: number;
+  replies_count?: number;
+  user_has_liked?: boolean;
+  firebase_key?: string; // ✅ إضافة مفتاح Firebase الفريد
+}
+
+interface Reply {
+  id: string; // ✅ تغيير إلى string لضمان التفرد
+  comment_id: string;
+  user: User;
+  content: string;
+  created_at: string;
+  likes_count?: number;
+  user_has_liked?: boolean;
+  firebase_key?: string; // ✅ إضافة مفتاح Firebase الفريد
 }
 
 interface GalleryItem {
@@ -96,6 +111,12 @@ export const PostCard = ({
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
+  // Reply states
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyContent, setReplyContent] = useState("");
+  const [loadingReply, setLoadingReply] = useState(false);
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
+
   // Auth context
   const { user: authUser } = useContext(AuthContext);
   const user_id = currentUserId || authUser?.id;
@@ -114,17 +135,41 @@ export const PostCard = ({
 
     // 🔥 Real-time comments listener
     const commentsRef = ref(db, `posts/${postId}/comments`);
-    const commentsUnsubscribe = onValue(commentsRef, (snapshot) => {
+    const commentsUnsubscribe = onValue(commentsRef, async (snapshot) => {
       if (snapshot.exists()) {
         const commentsData = snapshot.val();
         const commentsArray: Comment[] = [];
         
         // Convert Firebase object to array safely
-        Object.keys(commentsData).forEach(key => {
+        const commentKeys = Object.keys(commentsData);
+        
+        for (const key of commentKeys) {
           const comment = commentsData[key];
           if (comment && typeof comment === 'object') {
+            // ✅ استخدام مفتاح Firebase الفريد كمفتاح رئيسي
+            const commentId = key; // ✅ هذا مفتاح فريد من Firebase
+            
+            // Get likes count for this comment
+            const commentLikesRef = ref(db, `posts/${postId}/comments/${key}/likes`);
+            const likesSnapshot = await get(commentLikesRef);
+            const likesCount = likesSnapshot.exists() ? Object.keys(likesSnapshot.val()).length : 0;
+            
+            // Check if current user liked this comment
+            let userHasLiked = false;
+            if (user_id && likesSnapshot.exists()) {
+              const likesData = likesSnapshot.val();
+              userHasLiked = Object.keys(likesData).some(likeKey => 
+                likesData[likeKey].user_id === user_id
+              );
+            }
+
+            // Get replies count
+            const repliesRef = ref(db, `posts/${postId}/comments/${key}/replies`);
+            const repliesSnapshot = await get(repliesRef);
+            const repliesCount = repliesSnapshot.exists() ? Object.keys(repliesSnapshot.val()).length : 0;
+
             commentsArray.push({
-              id: Number(comment.id) || Date.now(),
+              id: commentId, // ✅ استخدام مفتاح Firebase الفريد
               post_id: Number(comment.post_id) || postId,
               user: {
                 id: Number(comment.user?.id) || 0,
@@ -135,10 +180,14 @@ export const PostCard = ({
               },
               content: String(comment.content || ""),
               reaction: comment.reaction ? String(comment.reaction) : null,
-              created_at: String(comment.created_at || new Date().toISOString())
+              created_at: String(comment.created_at || new Date().toISOString()),
+              likes_count: likesCount,
+              replies_count: repliesCount,
+              user_has_liked: userHasLiked,
+              firebase_key: key // ✅ حفظ المفتاح للاستخدام المستقبلي
             });
           }
-        });
+        }
         
         // Sort by creation date (newest first)
         const sortedComments = commentsArray.sort((a, b) => 
@@ -185,6 +234,11 @@ export const PostCard = ({
     };
   }, [postId, user_id]);
 
+  // 🔥 إنشاء مفتاح فريد
+  const generateUniqueId = useCallback(() => {
+    return `id_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }, []);
+
   // 🔥 Enhanced notification system
   const sendNotification = useCallback(async (type: string, message: string, additionalData: any = {}) => {
     if (!authUser || !author.id) {
@@ -199,7 +253,7 @@ export const PostCard = ({
     }
 
     try {
-      const notificationId = `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const notificationId = generateUniqueId();
       const notificationRef = ref(db, `notifications/${author.id}/${notificationId}`);
       
       const notificationData = {
@@ -224,7 +278,7 @@ export const PostCard = ({
     } catch (error) {
       console.error("❌ Error sending notification:", error);
     }
-  }, [authUser, author.id, postId, safeContent]);
+  }, [authUser, author.id, postId, safeContent, generateUniqueId]);
 
   // Helper function for notification titles
   const getNotificationTitle = (type: string) => {
@@ -235,12 +289,16 @@ export const PostCard = ({
         return 'New Comment';
       case 'post_share':
         return 'Post Shared';
+      case 'comment_like':
+        return 'Comment Liked';
+      case 'comment_reply':
+        return 'New Reply';
       default:
         return 'New Activity';
     }
   };
 
-  // 🔥 Real-time like function
+  // 🔥 Real-time like function for POST
   const handleLikeToggle = async () => {
     if (!user_id) {
       toast.error("Please login to like posts");
@@ -307,6 +365,69 @@ export const PostCard = ({
     }
   };
 
+  // 🔥 Real-time like function for COMMENT
+  const handleCommentLikeToggle = async (commentId: string) => {
+    if (!user_id || !authUser) {
+      toast.error("Please login to like comments");
+      return;
+    }
+
+    try {
+      const commentRef = ref(db, `posts/${postId}/comments/${commentId}`);
+      const commentSnapshot = await get(commentRef);
+      
+      if (!commentSnapshot.exists()) {
+        toast.error("Comment not found");
+        return;
+      }
+
+      const commentData = commentSnapshot.val();
+      const likesRef = ref(db, `posts/${postId}/comments/${commentId}/likes`);
+      
+      // Check if user already liked this comment
+      const userLikeQuery = query(
+        ref(db, `posts/${postId}/comments/${commentId}/likes`),
+        orderByChild('user_id'),
+        equalTo(user_id)
+      );
+
+      const likeSnapshot = await get(userLikeQuery);
+      
+      if (likeSnapshot.exists()) {
+        // Unlike - remove the like
+        const likeData = likeSnapshot.val();
+        const likeKey = Object.keys(likeData)[0];
+        await remove(ref(db, `posts/${postId}/comments/${commentId}/likes/${likeKey}`));
+        toast.success("Comment unliked!");
+      } else {
+        // Like - add new like
+        const newLikeKey = push(likesRef).key;
+        if (newLikeKey) {
+          await set(ref(db, `posts/${postId}/comments/${commentId}/likes/${newLikeKey}`), {
+            user_id: user_id,
+            user_name: String(authUser.user_name),
+            user_avatar: String(authUser.profile_image || ""),
+            created_at: new Date().toISOString(),
+            timestamp: Date.now()
+          });
+
+          // Send notification to comment owner if it's not the current user
+          if (commentData.user.id !== authUser.id) {
+            await sendNotification('comment_like', 
+              `${authUser.user_name} liked your comment: "${commentData.content.substring(0, 50)}..."`,
+              { comment_id: commentId, post_id: postId }
+            );
+          }
+          
+          toast.success("Comment liked!");
+        }
+      }
+    } catch (error: any) {
+      console.error("Error with comment like:", error);
+      toast.error("Error liking comment");
+    }
+  };
+
   // 🔥 Real-time comment function
   const handleAddComment = async () => {
     const safeNewComment = String(newComment || '').trim();
@@ -321,7 +442,7 @@ export const PostCard = ({
       
       if (newCommentKey) {
         const firebaseComment = {
-          id: newCommentKey,
+          id: newCommentKey, // ✅ استخدام مفتاح Firebase الفريد
           post_id: postId,
           user: {
             id: authUser.id,
@@ -356,6 +477,116 @@ export const PostCard = ({
     } finally {
       setLoadingComment(false);
     }
+  };
+
+  // 🔥 Real-time reply function
+  const handleAddReply = async (commentId: string) => {
+    const safeReplyContent = String(replyContent || '').trim();
+    if (!safeReplyContent || !authUser) return;
+    
+    try {
+      setLoadingReply(true);
+      
+      // 🔥 Add to Firebase for real-time update
+      const repliesRef = ref(db, `posts/${postId}/comments/${commentId}/replies`);
+      const newReplyKey = push(repliesRef).key;
+      
+      if (newReplyKey) {
+        const firebaseReply = {
+          id: newReplyKey, // ✅ استخدام مفتاح Firebase الفريد
+          comment_id: commentId,
+          user: {
+            id: authUser.id,
+            user_name: String(authUser.user_name),
+            profile_image: String(authUser.profile_image || ""),
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          },
+          content: safeReplyContent,
+          created_at: new Date().toISOString(),
+          timestamp: Date.now()
+        };
+
+        await set(ref(db, `posts/${postId}/comments/${commentId}/replies/${newReplyKey}`), firebaseReply);
+        
+        // 🔥 Send notification to comment owner
+        const commentRef = ref(db, `posts/${postId}/comments/${commentId}`);
+        const commentSnapshot = await get(commentRef);
+        
+        if (commentSnapshot.exists()) {
+          const commentData = commentSnapshot.val();
+          if (commentData.user.id !== authUser.id) {
+            await sendNotification('comment_reply', 
+              `${authUser.user_name} replied to your comment: "${safeReplyContent.substring(0, 50)}..."`,
+              { comment_id: commentId, reply_id: newReplyKey, post_id: postId }
+            );
+          }
+        }
+        
+        setReplyContent("");
+        setReplyingTo(null);
+        toast.success("Reply added!");
+        
+      }
+    } catch (error) {
+      console.error("Error adding real-time reply:", error);
+      toast.error("Error adding reply");
+    } finally {
+      setLoadingReply(false);
+    }
+  };
+
+  // 🔥 Toggle replies visibility
+  const toggleReplies = async (commentId: string) => {
+    const newExpanded = new Set(expandedReplies);
+    if (newExpanded.has(commentId)) {
+      newExpanded.delete(commentId);
+    } else {
+      newExpanded.add(commentId);
+    }
+    setExpandedReplies(newExpanded);
+  };
+
+  // 🔥 Get replies for a comment
+  const getReplies = async (commentId: string): Promise<Reply[]> => {
+    try {
+      const repliesRef = ref(db, `posts/${postId}/comments/${commentId}/replies`);
+      const snapshot = await get(repliesRef);
+      
+      if (snapshot.exists()) {
+        const repliesData = snapshot.val();
+        const repliesArray: Reply[] = [];
+        
+        Object.keys(repliesData).forEach(key => {
+          const reply = repliesData[key];
+          if (reply && typeof reply === 'object') {
+            repliesArray.push({
+              id: key, // ✅ استخدام مفتاح Firebase الفريد
+              comment_id: String(reply.comment_id) || commentId,
+              user: {
+                id: Number(reply.user?.id) || 0,
+                user_name: String(reply.user?.user_name || "Unknown User"),
+                profile_image: String(reply.user?.profile_image || ""),
+                created_at: String(reply.user?.created_at || new Date().toISOString()),
+                updated_at: String(reply.user?.updated_at || new Date().toISOString())
+              },
+              content: String(reply.content || ""),
+              created_at: String(reply.created_at || new Date().toISOString()),
+              firebase_key: key // ✅ حفظ المفتاح للاستخدام المستقبلي
+            });
+          }
+        });
+        
+        // Sort by creation date (oldest first for replies)
+        return repliesArray.sort((a, b) => 
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+      }
+    } catch (error) {
+      console.error("Error getting replies:", error);
+    }
+    
+    return [];
   };
 
   // 🔥 Share Post Functions
@@ -442,6 +673,10 @@ export const PostCard = ({
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleAddComment();
+  };
+
+  const handleReplyKeyPress = (e: React.KeyboardEvent<HTMLInputElement>, commentId: string) => {
+    if (e.key === "Enter") handleAddReply(commentId);
   };
 
   // Check if image is default
@@ -571,6 +806,58 @@ export const PostCard = ({
 
   const allImages = safeGallery.length > 0 ? safeGallery : (safeImage && !isDefaultImage(safeImage) ? [{ id: 1, name: "Post Image", fullUrl: safeImage }] : []);
 
+  // Render replies for a comment
+  const CommentReplies = ({ commentId }: { commentId: string }) => {
+    const [replies, setReplies] = useState<Reply[]>([]);
+    const [loadingReplies, setLoadingReplies] = useState(true);
+
+    useEffect(() => {
+      const loadReplies = async () => {
+        setLoadingReplies(true);
+        const repliesData = await getReplies(commentId);
+        setReplies(repliesData);
+        setLoadingReplies(false);
+      };
+
+      if (expandedReplies.has(commentId)) {
+        loadReplies();
+      }
+    }, [commentId, expandedReplies]);
+
+    if (loadingReplies) {
+      return (
+        <div className="ml-12 mt-2">
+          <div className="text-sm text-gray-500">Loading replies...</div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="ml-12 mt-2 space-y-2">
+        {replies.map((reply) => (
+          <div key={reply.id} className="flex items-start gap-2"> {/* ✅ استخدام المفتاح الفريد */}
+            <UserAvatar
+              src={String(reply.user.profile_image)}
+              fallback={String(reply.user.user_name).charAt(0)}
+              size="sm"
+            />
+            <div className="flex-1 bg-gray-100 rounded-2xl px-3 py-2">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-semibold text-sm text-gray-900">
+                  {String(reply.user.user_name)}
+                </span>
+                <span className="text-xs text-gray-500">
+                  {new Date(reply.created_at).toLocaleTimeString()}
+                </span>
+              </div>
+              <p className="text-sm text-gray-700">{String(reply.content)}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <>
       <Card className={`mb-4 border rounded-lg shadow-sm ${is_ad_request ? 'border-[#039fb3] border-2 bg-gradient-to-r from-blue-50 to-white' : 'border-gray-300 bg-white'}`}>
@@ -681,7 +968,15 @@ export const PostCard = ({
               Comment
             </Button>
 
-           
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowShareDialog(true)}
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            >
+              <Share2 className="w-4 h-4" />
+              Share
+            </Button>
           </div>
 
           {/* Comments Section - Facebook Style */}
@@ -692,24 +987,83 @@ export const PostCard = ({
                 {commentList
                   .filter(action => action.content && String(action.content).trim() !== '')
                   .map((action) => (
-                    <div key={action.id} className="flex items-start gap-2">
+                    <div key={action.id} className="flex items-start gap-2"> {/* ✅ استخدام المفتاح الفريد */}
                       <UserAvatar
                         src={String(action.user.profile_image)}
                         fallback={String(action.user.user_name).charAt(0)}
                         size="sm"
                       />
-                      <div className="flex-1 bg-gray-100 rounded-2xl px-3 py-2">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-sm text-gray-900">{String(action.user.user_name)}</span>
+                      <div className="flex-1">
+                        <div className="bg-gray-100 rounded-2xl px-3 py-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-sm text-gray-900">
+                              {String(action.user.user_name)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700">{String(action.content)}</p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <button 
+                              onClick={() => handleCommentLikeToggle(action.id)}
+                              className={`text-xs ${action.user_has_liked ? 'text-[#039fb3] font-semibold' : 'text-gray-500'} hover:text-[#0288a1]`}
+                            >
+                              Like {action.likes_count ? `(${action.likes_count})` : ''}
+                            </button>
+                            <button 
+                              onClick={() => setReplyingTo(replyingTo === action.id ? null : action.id)}
+                              className="text-xs text-gray-500 hover:text-gray-700"
+                            >
+                              Reply
+                            </button>
+                            <span className="text-xs text-gray-500">
+                              {new Date(action.created_at).toLocaleTimeString()}
+                            </span>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-700">{String(action.content)}</p>
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xs text-gray-500">Like</span>
-                          <span className="text-xs text-gray-500">Reply</span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(action.created_at).toLocaleTimeString()}
-                          </span>
-                        </div>
+
+                        {/* Replies Section */}
+                        {action.replies_count && action.replies_count > 0 && (
+                          <div className="mt-1">
+                            <button
+                              onClick={() => toggleReplies(action.id)}
+                              className="text-xs text-[#039fb3] hover:text-[#0288a1] font-medium"
+                            >
+                              {expandedReplies.has(action.id) ? 'Hide' : 'View'} {action.replies_count} {action.replies_count === 1 ? 'reply' : 'replies'}
+                            </button>
+                            
+                            {expandedReplies.has(action.id) && (
+                              <CommentReplies commentId={action.id} />
+                            )}
+                          </div>
+                        )}
+
+                        {/* Reply Input */}
+                        {replyingTo === action.id && (
+                          <div className="flex items-center gap-2 mt-2 ml-2">
+                            <UserAvatar
+                              src={String(authUser?.profile_image || "")}
+                              fallback={String(authUser?.user_name?.charAt(0) || "U")}
+                              size="sm"
+                            />
+                            <div className="flex-1 flex gap-2">
+                              <input
+                                type="text"
+                                placeholder="Write a reply..."
+                                value={replyContent}
+                                onChange={(e) => setReplyContent(e.target.value)}
+                                onKeyDown={(e) => handleReplyKeyPress(e, action.id)}
+                                className="flex-1 border border-gray-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-[#039fb3]"
+                                disabled={loadingReply}
+                              />
+                              <Button 
+                                onClick={() => handleAddReply(action.id)} 
+                                disabled={loadingReply || !replyContent.trim()}
+                                className="bg-[#039fb3] hover:bg-[#0288a1] text-white px-4 rounded-full text-sm"
+                              >
+                                {loadingReply ? "..." : "Reply"}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))

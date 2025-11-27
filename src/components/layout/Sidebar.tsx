@@ -24,7 +24,7 @@ const sidebarItems = [
   { id: "stories", label: "Explore Stories", icon: BookOpen, href: "/stories" },
   { id: "store", label: "Store", icon: Store, href: "/store" },
   { id: "Alljobs", label: "My Jobs", icon: Briefcase, href: "/Alljobs" },
-  { id: "jobs", label: "Jobs", icon: Briefcase, href: "/jobs" },
+  { id: "jobs", label: "Hiring Dentist", icon: Briefcase, href: "/jobs" },
   { id: "messages", label: "Messages", icon: MessageCircle, href: "/messages" },
   { id: "Rent", label: "Rent Clinic", icon: Store, href: "/Rent" },
 ];

@@ -25,6 +25,9 @@ import EditProfile from './pages/EditProfile';
 import UserProfile from './pages/UserProfile';
 import UsersList from './pages/UsersList';
 import Rent from './pages/rent';
+import Forget from './pages/forgetPassword';
+import OTPPage from "./pages/OTPPage";
+import ResetPassword from "./pages/restpassword";
 import RentDetail from './pages/rentDetail';
 import { AuthProvider } from "@/Context/AuthContext";
 import PrivateRoute from "@/components/layout/PrivateRoute"; // تأكد من المسار الصحيح
@@ -66,7 +69,10 @@ const App = () => (
             {/* المسارات المفتوحة */}
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
-            {/* المسار الافتراضي لصفحة غير موجودة */}
+            <Route path="/forgetPassword" element={<Forget />} />
+            <Route path="/otp" element={<OTPPage />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

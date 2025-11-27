@@ -618,8 +618,8 @@ const handleSubmit = async (e: React.FormEvent) => {
 >
   <option value="">Select Degree</option>
   <option value="gp">G.P</option>
+  <option value="diploma">MSC</option>Work History
   <option value="phd">PhD</option>
-  <option value="diploma">Diploma</option>
 </select>
                   {errors.postgraduate_degree && (
                     <p className="text-red-500 text-sm mt-1">{errors.postgraduate_degree}</p>
@@ -684,7 +684,7 @@ const handleSubmit = async (e: React.FormEvent) => {
                 {[
                   { name: "experience_years", label: "Years of Experience", type: "number", required: true },
                   { name: "description", label: "Professional Description", type: "text", required: true },
-                  { name: "where_did_you_work", label: "Work History", type: "text", required: true },
+                  { name: "where_did_you_work", label: "Pervious Experience", type: "text", required: true },
                   { name: "address", label: "Address", type: "text", required: true },
                 ].map((field) => (
                   <div key={field.name} className={`group ${field.name === 'description' || field.name === 'where_did_you_work' ? 'md:col-span-2' : ''}`}>

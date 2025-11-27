@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { AuthContext } from "@/Context/AuthContext";
 
-const jobTypes = ["All Jobs", "Full-time", "Part-time", "Remote", "Contract", "Internship"];
+const jobTypes = ["All Jobs", "Full-time", "Part-time", "Remote", ];
 
 const Jobs = () => {
   const { user: currentUser } = useContext(AuthContext);
@@ -98,18 +98,18 @@ const Jobs = () => {
         location: newJob.location,
         type: newJob.type,
         salary: newJob.salary,
-        image: newJob.image,
+        // image: newJob.image,
         available: newJob.available,
         description: newJob.description,
         responsibilities: newJob.responsibilities,
         requirements: newJob.requirements,
         benefits: newJob.benefits,
-        company_name: newJob.company.name,
-        company_size: newJob.company.size,
-        company_industry: newJob.company.industry,
-        company_founded: newJob.company.founded,
-        company_website: newJob.company.website,
-        company_location: newJob.company.location
+        // company_name: newJob.company.name,
+        // company_size: newJob.company.size,
+        // company_industry: newJob.company.industry,
+        // company_founded: newJob.company.founded,
+        // company_website: newJob.company.website,
+        // company_location: newJob.company.location
       };
 
       console.log("📤 Sending job data:", jobData);
@@ -132,14 +132,14 @@ const Jobs = () => {
         responsibilities: "",
         requirements: "",
         benefits: "",
-        company: {
-          name: "",
-          size: "",
-          industry: "",
-          founded: "",
-          website: "",
-          location: ""
-        }
+        // company: {
+        //   name: "",
+        //   size: "",
+        //   industry: "",
+        //   founded: "",
+        //   website: "",
+        //   location: ""
+        // }
       });
       
       alert("Job posted successfully! ✅");
@@ -380,8 +380,6 @@ const Jobs = () => {
                 <SelectItem value="Full-time">Full-time</SelectItem>
                 <SelectItem value="Part-time">Part-time</SelectItem>
                 <SelectItem value="Remote">Remote</SelectItem>
-                <SelectItem value="Contract">Contract</SelectItem>
-                <SelectItem value="Internship">Internship</SelectItem>
               </SelectContent>
             </Select>
 
@@ -393,7 +391,7 @@ const Jobs = () => {
             />
 
             {/* Company Information */}
-            <div className="border-t pt-4">
+            {/* <div className="border-t pt-4">
               <h3 className="font-semibold mb-3 text-sm sm:text-base">Company Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
@@ -432,7 +430,7 @@ const Jobs = () => {
                   onChange={(e) => handleCompanyChange("location", e.target.value)}
                 />
               </div>
-            </div>
+            </div> */}
 
             {/* Job Details */}
             <div className="border-t pt-4">
@@ -469,7 +467,7 @@ const Jobs = () => {
             </div>
 
             {/* Image Upload */}
-            <div className="border-t pt-4">
+            {/* <div className="border-t pt-4">
               <h3 className="font-semibold mb-3 text-sm sm:text-base">Company Logo</h3>
               <FileUploader
                 label="Upload Company Logo"
@@ -483,7 +481,7 @@ const Jobs = () => {
                   ✓ Logo uploaded successfully
                 </p>
               )}
-            </div>
+            </div> */}
           </div>
 
           <DialogFooter className="flex flex-col sm:flex-row justify-end gap-2 mt-6">
@@ -496,7 +494,7 @@ const Jobs = () => {
             </Button>
             <Button 
               onClick={handleCreateJob}
-              disabled={!newJob.title || !newJob.location || !newJob.salary || !newJob.company.name || !newJob.description}
+              disabled={!newJob.title || !newJob.location || !newJob.salary  || !newJob.description}
               className="w-full sm:w-auto bg-[#039fb3] hover:bg-[#0288a1]"
             >
               Post Job
